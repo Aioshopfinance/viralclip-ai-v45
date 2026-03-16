@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { ScoreGauge } from '@/components/shared/ScoreGauge'
+import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import type { Database } from '@/lib/supabase/types'
 
@@ -33,21 +34,49 @@ type ChannelWithAudits = BaseChannel & { audits: (BaseAudit & { type?: string })
 export default function Dashboard() {
   const { user } = useAppStore()
   const navigate = useNavigate()
+  const { toast } = useToast()
+
   const [auditUrl, setAuditUrl] = useState('')
   const [channels, setChannels] = useState<ChannelWithAudits[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     if (!user) return
-    const fetchChannels = async () => {
-      const { data } = await supabase
-        .from('channels')
-        .select(`*, audits(*)`)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-      if (data) setChannels(data as ChannelWithAudits[])
+
+    const isUUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id)
+    if (!isUUID) {
+      toast({
+        title: 'Erro de Sessão',
+        description: 'Identificador de usuário inválido para realizar consultas.',
+        variant: 'destructive',
+      })
       setIsLoading(false)
+      return
     }
+
+    const fetchChannels = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('channels')
+          .select(`*, audits(*)`)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+
+        if (error) throw error
+        if (data) setChannels(data as ChannelWithAudits[])
+      } catch (error: any) {
+        console.error('Error fetching channels:', error)
+        toast({
+          title: 'Erro de Consulta',
+          description: error.message || 'Falha ao buscar os dados do painel.',
+          variant: 'destructive',
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
     fetchChannels()
 
     const subscription = supabase
@@ -67,10 +96,11 @@ export default function Dashboard() {
     return () => {
       supabase.removeChannel(subscription)
     }
-  }, [user])
+  }, [user, toast])
 
   const handleAudit = () =>
     navigate(auditUrl ? '/channels/new?url=' + encodeURIComponent(auditUrl) : '/channels/new')
+
   const totalAudits = channels.reduce((sum, channel) => sum + (channel.audits?.length || 0), 0)
 
   return (

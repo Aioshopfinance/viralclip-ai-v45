@@ -20,7 +20,7 @@ import type { Database } from '@/lib/supabase/types'
 type AuditInsert = Database['public']['Tables']['audits']['Insert'] & { type: string }
 
 export default function ChannelNew() {
-  const { user, isAuthLoading } = useAppStore()
+  const { user } = useAppStore()
   const [searchParams] = useSearchParams()
   const [url, setUrl] = useState(searchParams.get('url') || '')
   const [platform, setPlatform] = useState('youtube')
@@ -30,17 +30,6 @@ export default function ChannelNew() {
   const [isProcessing, setIsProcessing] = useState(false)
   const navigate = useNavigate()
   const { toast } = useToast()
-
-  useEffect(() => {
-    if (!isAuthLoading && !user) {
-      toast({
-        title: 'Acesso Restrito',
-        description: 'Faça login para continuar.',
-        variant: 'destructive',
-      })
-      navigate('/')
-    }
-  }, [user, isAuthLoading, navigate, toast])
 
   const handleNext = () => {
     if (step < 2) {
@@ -60,6 +49,17 @@ export default function ChannelNew() {
   const submitChannel = async () => {
     if (!user) return
     setIsProcessing(true)
+
+    const isUUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id)
+    if (!isUUID) {
+      setIsProcessing(false)
+      return toast({
+        title: 'Erro de Autenticação',
+        description: 'Identificador de usuário inválido para registrar canal.',
+        variant: 'destructive',
+      })
+    }
 
     try {
       const { data: channel, error: cErr } = await supabase

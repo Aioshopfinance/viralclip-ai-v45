@@ -16,7 +16,6 @@ interface AppState {
   channels: typeof MOCK_CHANNELS
   login: (email: string, password: string) => Promise<{ error: Error | null }>
   signup: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>
-  demoLogin: (role?: UserRole) => void
   logout: () => void
   deductCredits: (amount: number) => boolean
 }
@@ -26,7 +25,7 @@ const AppContext = createContext<AppState | undefined>(undefined)
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppState['user']>(null)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
-  const [channels] = useState(MOCK_CHANNELS) // Keeping mock channels for now
+  const [channels] = useState(MOCK_CHANNELS)
 
   useEffect(() => {
     if (!supabase) {
@@ -73,6 +72,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
           role: profile.role?.toLowerCase() as 'client' | 'admin',
           credits: credits?.balance || 0,
         })
+      } else {
+        setUser({
+          id: userId,
+          name: 'Usuário',
+          email: '',
+          role: 'client',
+          credits: credits?.balance || 0,
+        })
       }
     } catch (error) {
       console.error('Error fetching user profile', error)
@@ -101,16 +108,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return { error }
   }
 
-  const demoLogin = (role: UserRole = 'client') => {
-    setUser({
-      id: 'mock-id-123',
-      name: 'João Cristão',
-      email: 'joao@exemplo.com',
-      role,
-      credits: 500,
-    })
-  }
-
   const logout = async () => {
     if (supabase) await supabase.auth.signOut()
     setUser(null)
@@ -119,18 +116,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deductCredits = (amount: number) => {
     if (!user || user.credits < amount) return false
 
-    // Optimistic UI update
     setUser({ ...user, credits: user.credits - amount })
 
-    // If Supabase is connected, update real DB
-    if (supabase && user.id !== 'mock-id-123') {
-      supabase
-        .from('credits')
-        .update({ balance: user.credits - amount })
-        .eq('user_id', user.id)
-        .then(({ error }) => {
-          if (error) console.error('Failed to deduct credits in DB', error)
-        })
+    if (supabase) {
+      const isUUID =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id)
+      if (isUUID) {
+        supabase
+          .from('credits')
+          .update({ balance: user.credits - amount })
+          .eq('user_id', user.id)
+          .then(({ error }) => {
+            if (error) console.error('Failed to deduct credits in DB', error)
+          })
+      }
     }
 
     return true
@@ -138,7 +137,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return React.createElement(
     AppContext.Provider,
-    { value: { user, isAuthLoading, channels, login, signup, demoLogin, logout, deductCredits } },
+    { value: { user, isAuthLoading, channels, login, signup, logout, deductCredits } },
     children,
   )
 }
