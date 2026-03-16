@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Bot, CheckCircle2, ChevronRight, Loader2, Youtube } from 'lucide-react'
+import { Bot, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,86 +13,122 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
+import useAppStore from '@/stores/main'
+import { supabase } from '@/lib/supabase/client'
+import type { Database } from '@/lib/supabase/types'
+
+type AuditInsert = Database['public']['Tables']['audits']['Insert'] & { type: string }
 
 export default function ChannelNew() {
+  const { user, isAuthLoading } = useAppStore()
   const [searchParams] = useSearchParams()
   const [url, setUrl] = useState(searchParams.get('url') || '')
+  const [platform, setPlatform] = useState('youtube')
+  const [name, setName] = useState('')
+  const [niche, setNiche] = useState('devocional')
   const [step, setStep] = useState(1)
   const [isProcessing, setIsProcessing] = useState(false)
   const navigate = useNavigate()
   const { toast } = useToast()
 
+  useEffect(() => {
+    if (!isAuthLoading && !user) {
+      toast({
+        title: 'Acesso Restrito',
+        description: 'Faça login para continuar.',
+        variant: 'destructive',
+      })
+      navigate('/')
+    }
+  }, [user, isAuthLoading, navigate, toast])
+
   const handleNext = () => {
-    if (step < 2) setStep(step + 1)
-    else {
-      setIsProcessing(true)
-      // Simulate AI processing
-      setTimeout(() => {
-        setIsProcessing(false)
-        toast({
-          title: 'Auditoria Concluída',
-          description: 'Os Agentes de IA finalizaram a análise do seu canal.',
+    if (step < 2) {
+      if (!name || !url) {
+        return toast({
+          title: 'Atenção',
+          description: 'Preencha todos os campos.',
+          variant: 'destructive',
         })
-        navigate('/channels/ch_1/audit')
-      }, 4000)
+      }
+      setStep(step + 1)
+    } else {
+      submitChannel()
     }
   }
 
-  if (isProcessing) {
+  const submitChannel = async () => {
+    if (!user) return
+    setIsProcessing(true)
+
+    try {
+      const { data: channel, error: cErr } = await supabase
+        .from('channels')
+        .insert({
+          user_id: user.id,
+          platform,
+          channel_name: name,
+          channel_link: url,
+          niche,
+          status: 'active',
+        })
+        .select()
+        .single()
+
+      if (cErr) throw cErr
+
+      const auditData: AuditInsert = {
+        user_id: user.id,
+        channel_id: channel.id,
+        status: 'pending',
+        type: 'free_audit',
+      }
+      const { error: aErr } = await supabase.from('audits').insert(auditData as any)
+
+      if (aErr) throw aErr
+
+      toast({
+        title: 'Sucesso!',
+        description: 'Seu canal foi registrado e a auditoria está na fila.',
+      })
+      navigate('/dashboard')
+    } catch (error: any) {
+      setIsProcessing(false)
+      toast({
+        title: 'Erro ao cadastrar',
+        description: error.message || 'Ocorreu um erro.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  if (isProcessing)
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center space-y-6">
-        <div className="relative">
-          <div className="absolute inset-0 bg-secondary/20 rounded-full animate-pulse-glow"></div>
-          <div className="relative bg-secondary text-white p-6 rounded-full shadow-lg">
-            <Bot className="h-12 w-12" />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <h2 className="text-2xl font-heading font-bold text-foreground">Auditando Canal...</h2>
-          <p className="text-muted-foreground">
-            O Agente Estrategista está avaliando métricas e conteúdo.
-          </p>
-        </div>
-        <div className="w-64 space-y-2">
-          <div className="flex items-center text-sm gap-2 text-emerald-600">
-            <CheckCircle2 className="h-4 w-4" /> Lendo metadados
-          </div>
-          <div className="flex items-center text-sm gap-2 text-emerald-600">
-            <CheckCircle2 className="h-4 w-4" /> Processando thumbnails
-          </div>
-          <div className="flex items-center text-sm gap-2 text-muted-foreground animate-pulse">
-            <Loader2 className="h-4 w-4 animate-spin" /> Calculando Creator Growth Score
-          </div>
-        </div>
+        <Bot className="h-12 w-12 text-secondary animate-pulse" />
+        <h2 className="text-2xl font-bold">Auditando Canal...</h2>
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">
+          O Agente Estrategista está avaliando seu conteúdo.
+        </p>
       </div>
     )
-  }
 
   return (
     <div className="max-w-xl mx-auto mt-10">
       <div className="mb-8">
         <h1 className="text-3xl font-heading font-bold">Auditoria de Crescimento</h1>
         <p className="text-muted-foreground mt-2">
-          Nossa IA fará uma auditoria completa gratuita do seu canal.
+          Nossa IA fará uma auditoria gratuita do seu canal.
         </p>
-      </div>
-
-      <div className="flex items-center gap-2 mb-8 text-sm font-medium">
-        <span className={step >= 1 ? 'text-primary' : 'text-muted-foreground'}>
-          1. Identificação
-        </span>
-        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        <span className={step >= 2 ? 'text-primary' : 'text-muted-foreground'}>2. Detalhes</span>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>
-            {step === 1 ? 'Qual é o seu canal?' : 'Fale mais sobre seu objetivo'}
-          </CardTitle>
+          <CardTitle>{step === 1 ? 'Qual é o seu canal?' : 'Detalhes adicionais'}</CardTitle>
           <CardDescription>
             {step === 1
-              ? 'Cole o link do YouTube, Instagram ou TikTok.'
+              ? 'Identifique sua plataforma e URL.'
               : 'Isso ajuda a IA a calibrar a estratégia.'}
           </CardDescription>
         </CardHeader>
@@ -100,24 +136,40 @@ export default function ChannelNew() {
           {step === 1 ? (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="url">URL do Canal</Label>
-                <div className="relative">
-                  <Youtube className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="url"
-                    placeholder="https://youtube.com/@seucanal"
-                    className="pl-9"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                  />
-                </div>
+                <Label>Plataforma</Label>
+                <Select value={platform} onValueChange={setPlatform}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="youtube">YouTube</SelectItem>
+                    <SelectItem value="instagram">Instagram</SelectItem>
+                    <SelectItem value="tiktok">TikTok</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Nome do Canal</Label>
+                <Input
+                  placeholder="Ex: Palavra Viva"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>URL do Canal</Label>
+                <Input
+                  placeholder="https://youtube.com/@seucanal"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                />
               </div>
             </div>
           ) : (
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Nicho Principal</Label>
-                <Select defaultValue="devocional">
+                <Select value={niche} onValueChange={setNiche}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
@@ -129,30 +181,15 @@ export default function ChannelNew() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Maior Desafio Atual</Label>
-                <Select defaultValue="retencao">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="retencao">Baixa Retenção nos vídeos</SelectItem>
-                    <SelectItem value="frequencia">Falta de tempo para postar</SelectItem>
-                    <SelectItem value="ideias">Falta de ideias virais</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           )}
-          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+          <div className="flex justify-end gap-3 pt-4 border-t">
             {step > 1 && (
               <Button variant="ghost" onClick={() => setStep(step - 1)}>
                 Voltar
               </Button>
             )}
-            <Button onClick={handleNext}>
-              {step === 1 ? 'Avançar' : 'Iniciar Auditoria com IA'}
-            </Button>
+            <Button onClick={handleNext}>{step === 1 ? 'Avançar' : 'Iniciar Auditoria'}</Button>
           </div>
         </CardContent>
       </Card>

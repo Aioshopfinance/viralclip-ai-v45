@@ -9,7 +9,231 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audits: {
+        Row: {
+          analysis_data: Json | null
+          channel_id: string
+          created_at: string
+          growth_score: number | null
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          analysis_data?: Json | null
+          channel_id: string
+          created_at?: string
+          growth_score?: number | null
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          analysis_data?: Json | null
+          channel_id?: string
+          created_at?: string
+          growth_score?: number | null
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'audits_channel_id_fkey'
+            columns: ['channel_id']
+            isOneToOne: false
+            referencedRelation: 'channels'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'audits_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      channels: {
+        Row: {
+          channel_link: string | null
+          channel_name: string | null
+          created_at: string
+          id: string
+          niche: string | null
+          platform: string
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          channel_link?: string | null
+          channel_name?: string | null
+          created_at?: string
+          id?: string
+          niche?: string | null
+          platform: string
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          channel_link?: string | null
+          channel_name?: string | null
+          created_at?: string
+          id?: string
+          niche?: string | null
+          platform?: string
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'channels_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      credits: {
+        Row: {
+          balance: number
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'credits_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: true
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          channel_id: string
+          created_at: string
+          deliverables: Json | null
+          id: string
+          service_name: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          deliverables?: Json | null
+          id?: string
+          service_name: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          deliverables?: Json | null
+          id?: string
+          service_name?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'projects_channel_id_fkey'
+            columns: ['channel_id']
+            isOneToOne: false
+            referencedRelation: 'channels'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'projects_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'transactions_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      users: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          role: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          full_name: string
+          id: string
+          role?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          role?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -153,3 +377,163 @@ export const Constants = {
 // IMPORTANT: The TypeScript types above map UUID, TEXT, VARCHAR all to "string".
 // Use the COLUMN TYPES section below to know the real PostgreSQL type for each column.
 // Always use the correct PostgreSQL type when writing SQL migrations.
+
+// --- COLUMN TYPES (actual PostgreSQL types) ---
+// Use this to know the real database type when writing migrations.
+// "string" in TypeScript types above may be uuid, text, varchar, timestamptz, etc.
+// Table: audits
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (not null)
+//   channel_id: uuid (not null)
+//   growth_score: integer (nullable)
+//   analysis_data: jsonb (nullable)
+//   status: text (not null, default: 'pending'::text)
+//   created_at: timestamp with time zone (not null, default: now())
+// Table: channels
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (not null)
+//   platform: text (not null)
+//   channel_name: text (nullable)
+//   channel_link: text (nullable)
+//   niche: text (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
+//   status: text (nullable, default: 'active'::text)
+// Table: credits
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (not null)
+//   balance: integer (not null, default: 0)
+//   updated_at: timestamp with time zone (not null, default: now())
+// Table: projects
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (not null)
+//   channel_id: uuid (not null)
+//   service_name: text (not null)
+//   status: text (not null, default: 'pending'::text)
+//   deliverables: jsonb (nullable)
+//   updated_at: timestamp with time zone (not null, default: now())
+//   created_at: timestamp with time zone (not null, default: timezone('utc'::text, now()))
+// Table: transactions
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (not null)
+//   amount: integer (not null)
+//   type: text (not null)
+//   description: text (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
+// Table: users
+//   id: uuid (not null)
+//   full_name: text (not null)
+//   email: text (not null)
+//   avatar_url: text (nullable)
+//   role: text (nullable, default: 'client'::text)
+//   created_at: timestamp with time zone (not null, default: now())
+
+// --- CONSTRAINTS ---
+// Table: audits
+//   FOREIGN KEY audits_channel_id_fkey: FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE
+//   PRIMARY KEY audits_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY audits_user_id_fkey: FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+// Table: channels
+//   PRIMARY KEY channels_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY channels_user_id_fkey: FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+// Table: credits
+//   PRIMARY KEY credits_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY credits_user_id_fkey: FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+//   UNIQUE credits_user_id_key: UNIQUE (user_id)
+// Table: projects
+//   FOREIGN KEY projects_channel_id_fkey: FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE
+//   PRIMARY KEY projects_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY projects_user_id_fkey: FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+// Table: transactions
+//   PRIMARY KEY transactions_pkey: PRIMARY KEY (id)
+//   CHECK transactions_type_check: CHECK ((type = ANY (ARRAY['credit_purchase'::text, 'service_usage'::text])))
+//   FOREIGN KEY transactions_user_id_fkey: FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+// Table: users
+//   FOREIGN KEY users_id_fkey: FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
+//   PRIMARY KEY users_pkey: PRIMARY KEY (id)
+//   CHECK users_role_check: CHECK ((role = ANY (ARRAY['visitor'::text, 'client'::text, 'affiliate'::text, 'collaborator'::text, 'administrator'::text, 'operator_ia'::text])))
+
+// --- ROW LEVEL SECURITY POLICIES ---
+// Table: audits
+//   Policy "Users can delete own audits" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//   Policy "Users can insert own audits" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (auth.uid() = user_id)
+//   Policy "Users can select own audits" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//   Policy "Users can update own audits" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
+// Table: channels
+//   Policy "Users can delete own channels" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//   Policy "Users can insert own channels" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (auth.uid() = user_id)
+//   Policy "Users can select own channels" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//   Policy "Users can update own channels" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
+// Table: credits
+//   Policy "Users can delete own credits" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//   Policy "Users can insert own credits" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (auth.uid() = user_id)
+//   Policy "Users can select own credits" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//   Policy "Users can update own credits" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
+// Table: projects
+//   Policy "Users can delete own projects" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//   Policy "Users can insert own projects" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (auth.uid() = user_id)
+//   Policy "Users can select own projects" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//   Policy "Users can update own projects" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
+// Table: transactions
+//   Policy "Users can delete own transactions" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//   Policy "Users can insert own transactions" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (auth.uid() = user_id)
+//   Policy "Users can select own transactions" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//   Policy "Users can update own transactions" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
+// Table: users
+//   Policy "Users can update own profile" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = id)
+//     WITH CHECK: (auth.uid() = id)
+//   Policy "Users can view own profile" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = id)
+
+// --- DATABASE FUNCTIONS ---
+// FUNCTION handle_new_user()
+//   CREATE OR REPLACE FUNCTION public.handle_new_user()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//   AS $function$
+//   BEGIN
+//     INSERT INTO public.users (id, full_name, email, role)
+//     VALUES (
+//       new.id,
+//       new.raw_user_meta_data->>'full_name',
+//       new.email,
+//       COALESCE(new.raw_user_meta_data->>'role', 'client')
+//     );
+//
+//     INSERT INTO public.credits (user_id, balance)
+//     VALUES (new.id, 500); -- Initial signup bonus
+//
+//     RETURN new;
+//   END;
+//   $function$
+//
+
+// --- INDEXES ---
+// Table: credits
+//   CREATE UNIQUE INDEX credits_user_id_key ON public.credits USING btree (user_id)

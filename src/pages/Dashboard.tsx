@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Activity, Play, Plus, TrendingUp, Sparkles, Youtube } from 'lucide-react'
+import { Activity, Plus, TrendingUp, Sparkles, Youtube, Instagram, Video } from 'lucide-react'
 import useAppStore from '@/stores/main'
 import {
   Card,
@@ -14,103 +14,99 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { ScoreGauge } from '@/components/shared/ScoreGauge'
+import { supabase } from '@/lib/supabase/client'
+import type { Database } from '@/lib/supabase/types'
+
+type BaseChannel = Database['public']['Tables']['channels']['Row']
+type BaseAudit = Database['public']['Tables']['audits']['Row']
+type ChannelWithAudits = BaseChannel & { audits: (BaseAudit & { type?: string })[] }
 
 export default function Dashboard() {
-  const { channels } = useAppStore()
+  const { user } = useAppStore()
   const navigate = useNavigate()
   const [auditUrl, setAuditUrl] = useState('')
+  const [channels, setChannels] = useState<ChannelWithAudits[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const handleAudit = () => {
-    if (auditUrl) {
-      navigate('/channels/new?url=' + encodeURIComponent(auditUrl))
-    } else {
-      navigate('/channels/new')
+  useEffect(() => {
+    if (!user) return
+    const fetchChannels = async () => {
+      const { data } = await supabase
+        .from('channels')
+        .select(`*, audits(*)`)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+      if (data) setChannels(data as ChannelWithAudits[])
+      setIsLoading(false)
     }
-  }
+    fetchChannels()
+
+    const subscription = supabase
+      .channel('dashboard-updates')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'audits', filter: `user_id=eq.${user.id}` },
+        fetchChannels,
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'channels', filter: `user_id=eq.${user.id}` },
+        fetchChannels,
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(subscription)
+    }
+  }, [user])
+
+  const handleAudit = () =>
+    navigate(auditUrl ? '/channels/new?url=' + encodeURIComponent(auditUrl) : '/channels/new')
+  const totalAudits = channels.reduce((sum, channel) => sum + (channel.audits?.length || 0), 0)
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-heading font-bold">Visão Geral</h1>
         <p className="text-muted-foreground mt-1">
-          Bem-vindo de volta. Aqui está o resumo do seu crescimento digital.
+          Bem-vindo de volta. Acompanhe o progresso das suas auditorias.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Auditoria Express Flow */}
         <Card className="col-span-1 md:col-span-3 border-secondary/30 bg-secondary/5 relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-            <Youtube className="h-40 w-40" />
-          </div>
           <CardHeader className="pb-2">
-            <CardTitle className="text-xl font-heading font-medium flex items-center gap-2 text-foreground">
-              <Youtube className="h-6 w-6 text-secondary" />
-              Auditoria de Crescimento Gratuita
+            <CardTitle className="text-xl flex items-center gap-2">
+              <Youtube className="h-6 w-6 text-secondary" /> Auditoria Gratuita com IA
             </CardTitle>
-            <CardDescription className="text-base">
-              Nossa IA analisa os vídeos do seu canal para encontrar oportunidades virais
-              escondidas.
+            <CardDescription>
+              Nossa IA analisa seu canal para encontrar oportunidades virais.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col sm:flex-row gap-3 pt-4 relative z-10">
+          <CardContent className="flex flex-col sm:flex-row gap-3 pt-4">
             <Input
-              placeholder="Cole a URL do seu canal (YouTube, Instagram ou TikTok)..."
+              placeholder="Cole a URL do seu canal..."
               value={auditUrl}
               onChange={(e) => setAuditUrl(e.target.value)}
-              className="bg-background max-w-xl text-base h-12"
+              className="bg-background max-w-xl"
             />
-            <Button size="lg" onClick={handleAudit} className="gap-2 shrink-0 h-12">
-              <Sparkles className="h-4 w-4" />
-              Rodar Auditoria Grátis
+            <Button size="lg" onClick={handleAudit} className="gap-2 shrink-0">
+              <Sparkles className="h-4 w-4" /> Rodar Auditoria
             </Button>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-primary to-primary/90 text-primary-foreground border-none">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-accent" />
-              Impacto Total
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-accent" /> Canais Monitorados
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold font-heading">170K</div>
-            <p className="text-primary-foreground/70 text-sm mt-1">Seguidores somados</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium flex items-center gap-2 text-muted-foreground">
-              <Play className="h-5 w-5 text-secondary" />
-              Vídeos Gerados
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold font-heading">24</div>
-            <p className="text-sm text-emerald-500 font-medium mt-1">+12 esta semana</p>
-          </CardContent>
-        </Card>
-
-        {/* AI Suggestion Box */}
-        <Card className="border-secondary/30 bg-secondary/5 relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-            <Sparkles className="h-16 w-16" />
-          </div>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium flex items-center gap-2 text-secondary">
-              <Sparkles className="h-5 w-5" />
-              Sugestão da IA
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm font-medium mb-3">
-              Seu canal "Palavra Viva" precisa de mais Retenção no início.
+            <div className="text-4xl font-bold font-heading">{channels.length}</div>
+            <p className="text-primary-foreground/70 text-sm mt-1">
+              {totalAudits} auditorias realizadas
             </p>
-            <Button size="sm" variant="secondary" className="w-full" asChild>
-              <Link to="/marketplace">Contratar Serviço</Link>
-            </Button>
           </CardContent>
         </Card>
       </div>
@@ -124,45 +120,71 @@ export default function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {channels.map((channel) => (
-            <Card key={channel.id} className="hover:shadow-md transition-shadow group">
-              <CardContent className="p-6 flex flex-col md:flex-row items-center gap-6">
-                <div className="flex-1 w-full flex items-center gap-4">
-                  <img
-                    src={channel.avatar}
-                    alt={channel.name}
-                    className="h-16 w-16 rounded-full border-2 border-muted object-cover"
-                  />
-                  <div>
-                    <h3 className="font-bold text-lg">{channel.name}</h3>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                      <Badge variant="outline" className="font-normal">
-                        {channel.platform}
-                      </Badge>
-                      <span>{channel.subscribers} subs</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="w-24 shrink-0">
-                  <ScoreGauge score={channel.score} />
-                </div>
-              </CardContent>
-              <CardFooter className="bg-muted/30 border-t p-4 flex justify-between items-center">
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Activity className="h-3 w-3" /> Atualizado hoje
-                </span>
-                <Button size="sm" asChild>
-                  <Link to={`/channels/${channel.id}/audit`}>Ver Relatório Completo</Link>
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+          {isLoading ? (
+            <div className="col-span-2 py-10 flex justify-center">
+              <div className="animate-spin h-8 w-8 border-b-2 border-primary rounded-full" />
+            </div>
+          ) : (
+            channels.map((channel) => {
+              const audit = channel.audits?.sort(
+                (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+              )[0]
+              const score = audit?.growth_score || 0
+              const status = audit?.status || 'pending'
+              const PlatformIcon =
+                channel.platform === 'instagram'
+                  ? Instagram
+                  : channel.platform === 'tiktok'
+                    ? Video
+                    : Youtube
 
+              return (
+                <Card key={channel.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6 flex flex-col md:flex-row items-center gap-6">
+                    <div className="flex-1 w-full flex items-center gap-4">
+                      <div className="h-16 w-16 rounded-full border-2 border-muted bg-secondary/10 flex items-center justify-center shrink-0">
+                        <PlatformIcon className="h-8 w-8 text-secondary" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg line-clamp-1">
+                          {channel.channel_name || 'Novo Canal'}
+                        </h3>
+                        <div className="flex items-center gap-2 text-sm mt-1">
+                          <Badge variant="outline" className="capitalize">
+                            {channel.platform}
+                          </Badge>
+                          <Badge
+                            variant={status === 'pending' ? 'secondary' : 'default'}
+                            className="text-xs"
+                          >
+                            {status === 'pending' ? 'Auditando...' : 'Concluído'}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="w-24 shrink-0">
+                      <ScoreGauge score={score} />
+                    </div>
+                  </CardContent>
+                  <CardFooter className="bg-muted/30 border-t p-4 flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Activity className="h-3 w-3" /> Audit: {status}
+                    </span>
+                    <Button size="sm" asChild disabled={status === 'pending'}>
+                      <Link to={status === 'pending' ? '#' : `/channels/${channel.id}/audit`}>
+                        {status === 'pending' ? 'Aguarde...' : 'Ver Relatório'}
+                      </Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              )
+            })
+          )}
           <Card
-            className="border-dashed flex flex-col items-center justify-center text-muted-foreground hover:bg-muted/50 transition-colors cursor-pointer min-h-[160px]"
+            className="border-dashed flex flex-col items-center justify-center text-muted-foreground hover:bg-muted/50 cursor-pointer min-h-[160px]"
             onClick={() => navigate('/channels/new')}
           >
-            <Plus className="h-8 w-8 mb-2 text-muted-foreground/50" />
+            <Plus className="h-8 w-8 mb-2 opacity-50" />
             <span className="font-medium">Adicionar Novo Canal</span>
           </Card>
         </div>
