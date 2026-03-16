@@ -17,6 +17,7 @@ export type Database = {
           growth_score: number | null
           id: string
           status: string
+          type: string | null
           user_id: string
         }
         Insert: {
@@ -26,6 +27,7 @@ export type Database = {
           growth_score?: number | null
           id?: string
           status?: string
+          type?: string | null
           user_id: string
         }
         Update: {
@@ -35,6 +37,7 @@ export type Database = {
           growth_score?: number | null
           id?: string
           status?: string
+          type?: string | null
           user_id?: string
         }
         Relationships: [
@@ -389,6 +392,7 @@ export const Constants = {
 //   analysis_data: jsonb (nullable)
 //   status: text (not null, default: 'pending'::text)
 //   created_at: timestamp with time zone (not null, default: now())
+//   type: text (nullable, default: 'free_audit'::text)
 // Table: channels
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (not null)

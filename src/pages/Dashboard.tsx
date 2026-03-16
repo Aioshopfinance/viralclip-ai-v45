@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Activity, Plus, TrendingUp, Sparkles, Youtube, Instagram, Video } from 'lucide-react'
+import {
+  Activity,
+  Plus,
+  TrendingUp,
+  Sparkles,
+  Youtube,
+  Instagram,
+  Video,
+  AlertCircle,
+} from 'lucide-react'
 import useAppStore from '@/stores/main'
 import {
   Card,
@@ -154,10 +163,20 @@ export default function Dashboard() {
                             {channel.platform}
                           </Badge>
                           <Badge
-                            variant={status === 'pending' ? 'secondary' : 'default'}
+                            variant={
+                              status === 'pending'
+                                ? 'secondary'
+                                : status === 'error'
+                                  ? 'destructive'
+                                  : 'default'
+                            }
                             className="text-xs"
                           >
-                            {status === 'pending' ? 'Auditando...' : 'Concluído'}
+                            {status === 'pending'
+                              ? 'Auditando...'
+                              : status === 'error'
+                                ? 'Falhou'
+                                : 'Concluído'}
                           </Badge>
                         </div>
                       </div>
@@ -168,11 +187,23 @@ export default function Dashboard() {
                   </CardContent>
                   <CardFooter className="bg-muted/30 border-t p-4 flex justify-between items-center">
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Activity className="h-3 w-3" /> Audit: {status}
+                      {status === 'error' ? (
+                        <>
+                          <AlertCircle className="h-3 w-3 text-destructive" /> Erro na análise
+                        </>
+                      ) : (
+                        <>
+                          <Activity className="h-3 w-3" /> Audit: {status}
+                        </>
+                      )}
                     </span>
-                    <Button size="sm" asChild disabled={status === 'pending'}>
-                      <Link to={status === 'pending' ? '#' : `/channels/${channel.id}/audit`}>
-                        {status === 'pending' ? 'Aguarde...' : 'Ver Relatório'}
+                    <Button size="sm" asChild disabled={status === 'pending' || status === 'error'}>
+                      <Link to={status === 'completed' ? `/channels/${channel.id}/audit` : '#'}>
+                        {status === 'pending'
+                          ? 'Aguarde...'
+                          : status === 'error'
+                            ? 'Falhou'
+                            : 'Ver Relatório'}
                       </Link>
                     </Button>
                   </CardFooter>
