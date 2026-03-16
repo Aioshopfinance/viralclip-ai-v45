@@ -3,7 +3,14 @@ export interface User {
   full_name: string
   email: string
   avatar_url?: string
-  role: 'Client' | 'Admin' | 'Affiliate' | string
+  role:
+    | 'visitor'
+    | 'client'
+    | 'affiliate'
+    | 'collaborator'
+    | 'administrator'
+    | 'operator_ia'
+    | string
   created_at: string
 }
 
@@ -11,11 +18,10 @@ export interface Channel {
   id: string
   user_id: string
   platform: 'YouTube' | 'TikTok' | 'Instagram' | string
-  channel_name: string
-  channel_url?: string
+  channel_name?: string
+  channel_link?: string
   niche?: string
-  frequency?: string
-  goals?: string
+  status?: string
   created_at: string
 }
 
@@ -23,8 +29,8 @@ export interface Audit {
   id: string
   user_id: string
   channel_id: string
-  creator_growth_score?: number
-  report_json?: Record<string, any>
+  growth_score?: number
+  analysis_data?: Record<string, any>
   status: 'pending' | 'completed' | string
   created_at: string
 }
@@ -33,24 +39,25 @@ export interface Project {
   id: string
   user_id: string
   channel_id: string
-  service_type: string
+  service_name: string
   status: 'pending' | 'in_progress' | 'delivered' | string
-  delivery_content?: Record<string, any>
+  deliverables?: Record<string, any>
   updated_at: string
+  created_at: string
 }
 
 export interface Credit {
   id: string
   user_id: string
   balance: number
-  last_updated: string
+  updated_at: string
 }
 
 export interface Transaction {
   id: string
   user_id: string
   amount: number
-  type: 'debit' | 'credit'
+  type: 'credit_purchase' | 'service_usage'
   description?: string
   created_at: string
 }
