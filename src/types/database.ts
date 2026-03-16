@@ -1,87 +1,56 @@
 export interface User {
   id: string
+  full_name: string
   email: string
-  role: 'client' | 'admin'
+  avatar_url?: string
+  role: 'Client' | 'Admin' | 'Affiliate' | string
   created_at: string
 }
 
-export interface UserProfile {
+export interface Channel {
   id: string
   user_id: string
-  full_name: string
-  avatar_url?: string
-  preferences?: Record<string, any>
-}
-
-export interface Profile {
-  id: string
-  user_id: string
-  platform: 'youtube' | 'instagram' | 'tiktok'
+  platform: 'YouTube' | 'TikTok' | 'Instagram' | string
   channel_name: string
-  channel_url: string
-  subscribers: number
-  niche: string
+  channel_url?: string
+  niche?: string
+  frequency?: string
+  goals?: string
+  created_at: string
 }
 
 export interface Audit {
   id: string
-  profile_id: string
-  creator_growth_score: number
-  report_data: Record<string, any>
-  status: 'pending' | 'completed' | 'failed'
+  user_id: string
+  channel_id: string
+  creator_growth_score?: number
+  report_json?: Record<string, any>
+  status: 'pending' | 'completed' | string
   created_at: string
-}
-
-export interface Service {
-  id: string
-  title: string
-  description: string
-  category: 'Biblical Viral Ideas' | 'Devotional Scripts' | 'Viral Clips' | string
-  credits_cost: number
-  agent_id: string
-}
-
-export interface Agent {
-  id: string
-  name: string
-  role_description: string
-  team_id?: string
-}
-
-export interface Team {
-  id: string
-  name: string
 }
 
 export interface Project {
   id: string
   user_id: string
-  service_id: string
-  profile_id: string
-  status: 'queued' | 'processing' | 'completed' | 'failed'
-  progress: number
-  created_at: string
+  channel_id: string
+  service_type: string
+  status: 'pending' | 'in_progress' | 'delivered' | string
+  delivery_content?: Record<string, any>
+  updated_at: string
 }
 
-export interface Deliverable {
+export interface Credit {
   id: string
-  project_id: string
-  file_url: string
-  type: 'video' | 'script' | 'image' | 'document'
-}
-
-export interface Payment {
-  id: string
-  user_id: string
-  amount: number
-  currency: string
-  provider: 'stripe' | 'mercadopago'
-  status: 'pending' | 'succeeded' | 'failed'
-  created_at: string
-}
-
-export interface CreditBalance {
   user_id: string
   balance: number
   last_updated: string
+}
+
+export interface Transaction {
+  id: string
+  user_id: string
+  amount: number
+  type: 'debit' | 'credit'
+  description?: string
+  created_at: string
 }

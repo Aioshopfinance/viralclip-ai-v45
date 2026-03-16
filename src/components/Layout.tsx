@@ -1,4 +1,5 @@
 import { Outlet, useLocation } from 'react-router-dom'
+import { Loader2 } from 'lucide-react'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { AppHeader } from '@/components/layout/AppHeader'
@@ -6,8 +7,19 @@ import { DemoBanner } from '@/components/layout/DemoBanner'
 import useAppStore from '@/stores/main'
 
 export default function Layout() {
-  const { user } = useAppStore()
+  const { user, isAuthLoading } = useAppStore()
   const location = useLocation()
+
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 text-primary animate-spin" />
+        <p className="text-muted-foreground mt-4 font-medium animate-pulse">
+          Carregando workspace...
+        </p>
+      </div>
+    )
+  }
 
   // Don't show sidebar/header on the landing page if not logged in
   const isLanding = location.pathname === '/' && !user
