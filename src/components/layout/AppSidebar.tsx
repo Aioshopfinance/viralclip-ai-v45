@@ -7,8 +7,8 @@ import {
   ShieldAlert,
   Zap,
   LogOut,
+  Settings as SettingsIcon,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import useAppStore from '@/stores/main'
 import {
   Sidebar,
@@ -28,6 +28,7 @@ const navItems = [
   { title: 'Meus Canais', icon: Youtube, path: '/channels' },
   { title: 'Marketplace AI', icon: ShoppingCart, path: '/marketplace' },
   { title: 'Projetos', icon: FolderKanban, path: '/projects' },
+  { title: 'Configurações', icon: SettingsIcon, path: '/settings' },
 ]
 
 export function AppSidebar() {
@@ -92,10 +93,10 @@ export function AppSidebar() {
         </div>
 
         <div className="flex items-center justify-between px-2">
-          <div className="flex flex-col">
+          <div className="flex flex-col items-start">
             <span className="text-sm font-semibold">{user.name}</span>
-            <span className="text-xs text-muted-foreground">
-              {user.role === 'admin' ? 'Administrador' : 'Criador'}
+            <span className="text-[10px] text-secondary font-medium px-1.5 py-0.5 bg-secondary/10 rounded-md mt-1 uppercase tracking-wider">
+              {user.role === 'admin' ? 'Administrador' : 'Cliente'}
             </span>
           </div>
           <Button variant="ghost" size="icon" onClick={logout} title="Sair">

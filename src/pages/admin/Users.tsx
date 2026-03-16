@@ -10,6 +10,8 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import useAppStore from '@/stores/main'
+import { Navigate } from 'react-router-dom'
 
 const MOCK_USERS = [
   {
@@ -39,14 +41,20 @@ const MOCK_USERS = [
 ]
 
 export default function AdminUsers() {
+  const { user } = useAppStore()
+
+  if (user?.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center gap-3 border-b border-border pb-4">
         <ShieldAlert className="h-8 w-8 text-rose-500" />
         <div>
-          <h1 className="text-2xl font-heading font-bold text-foreground">Painel Administrativo</h1>
+          <h1 className="text-2xl font-heading font-bold text-foreground">Gerenciar Usuários</h1>
           <p className="text-muted-foreground text-sm">
-            Gerenciamento interno de usuários e créditos.
+            Painel administrativo para controle interno de contas.
           </p>
         </div>
       </div>

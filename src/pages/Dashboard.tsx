@@ -1,20 +1,32 @@
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { Activity, Play, Plus, TrendingUp, Sparkles, Youtube } from 'lucide-react'
 import useAppStore from '@/stores/main'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
   CardFooter,
+  CardDescription,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { ScoreGauge } from '@/components/shared/ScoreGauge'
 
 export default function Dashboard() {
   const { channels } = useAppStore()
+  const navigate = useNavigate()
+  const [auditUrl, setAuditUrl] = useState('')
+
+  const handleAudit = () => {
+    if (auditUrl) {
+      navigate('/channels/new?url=' + encodeURIComponent(auditUrl))
+    } else {
+      navigate('/channels/new')
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -26,6 +38,35 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Auditoria Express Flow */}
+        <Card className="col-span-1 md:col-span-3 border-secondary/30 bg-secondary/5 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+            <Youtube className="h-40 w-40" />
+          </div>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xl font-heading font-medium flex items-center gap-2 text-foreground">
+              <Youtube className="h-6 w-6 text-secondary" />
+              Auditoria de Crescimento Gratuita
+            </CardTitle>
+            <CardDescription className="text-base">
+              Nossa IA analisa os vídeos do seu canal para encontrar oportunidades virais
+              escondidas.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col sm:flex-row gap-3 pt-4 relative z-10">
+            <Input
+              placeholder="Cole a URL do seu canal (YouTube, Instagram ou TikTok)..."
+              value={auditUrl}
+              onChange={(e) => setAuditUrl(e.target.value)}
+              className="bg-background max-w-xl text-base h-12"
+            />
+            <Button size="lg" onClick={handleAudit} className="gap-2 shrink-0 h-12">
+              <Sparkles className="h-4 w-4" />
+              Rodar Auditoria Grátis
+            </Button>
+          </CardContent>
+        </Card>
+
         <Card className="bg-gradient-to-br from-primary to-primary/90 text-primary-foreground border-none">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg font-medium flex items-center gap-2">
@@ -54,7 +95,7 @@ export default function Dashboard() {
 
         {/* AI Suggestion Box */}
         <Card className="border-secondary/30 bg-secondary/5 relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-10">
+          <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
             <Sparkles className="h-16 w-16" />
           </div>
           <CardHeader className="pb-2">
@@ -68,7 +109,7 @@ export default function Dashboard() {
               Seu canal "Palavra Viva" precisa de mais Retenção no início.
             </p>
             <Button size="sm" variant="secondary" className="w-full" asChild>
-              <Link to="/marketplace">Contratar Cortes Virais</Link>
+              <Link to="/marketplace">Contratar Serviço</Link>
             </Button>
           </CardContent>
         </Card>
@@ -119,7 +160,7 @@ export default function Dashboard() {
 
           <Card
             className="border-dashed flex flex-col items-center justify-center text-muted-foreground hover:bg-muted/50 transition-colors cursor-pointer min-h-[160px]"
-            onClick={() => (window.location.href = '/channels/new')}
+            onClick={() => navigate('/channels/new')}
           >
             <Plus className="h-8 w-8 mb-2 text-muted-foreground/50" />
             <span className="font-medium">Adicionar Novo Canal</span>

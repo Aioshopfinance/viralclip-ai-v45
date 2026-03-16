@@ -111,7 +111,7 @@ export default function ChannelAudit() {
               </p>
               <Button variant="secondary" className="w-full gap-2" asChild>
                 <Link to="/marketplace">
-                  Contratar no Marketplace <ArrowRight className="h-4 w-4" />
+                  Contratar Serviço <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
             </CardContent>

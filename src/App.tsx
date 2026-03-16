@@ -11,6 +11,7 @@ import ProjectDetail from './pages/ProjectDetail'
 import ChannelNew from './pages/ChannelNew'
 import ChannelAudit from './pages/ChannelAudit'
 import AdminUsers from './pages/admin/Users'
+import Settings from './pages/Settings'
 import NotFound from './pages/NotFound'
 import { AppProvider } from './stores/main'
 
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/channels/new" element={<ChannelNew />} />
             <Route path="/channels/:id/audit" element={<ChannelAudit />} />
             <Route path="/channels" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/settings" element={<Settings />} />
 
             <Route path="/admin" element={<AdminUsers />} />
           </Route>

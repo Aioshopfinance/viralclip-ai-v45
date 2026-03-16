@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Bot, CheckCircle2, ChevronRight, Loader2, Youtube } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,6 +15,8 @@ import {
 import { useToast } from '@/hooks/use-toast'
 
 export default function ChannelNew() {
+  const [searchParams] = useSearchParams()
+  const [url, setUrl] = useState(searchParams.get('url') || '')
   const [step, setStep] = useState(1)
   const [isProcessing, setIsProcessing] = useState(false)
   const navigate = useNavigate()
@@ -59,7 +61,7 @@ export default function ChannelNew() {
             <CheckCircle2 className="h-4 w-4" /> Processando thumbnails
           </div>
           <div className="flex items-center text-sm gap-2 text-muted-foreground animate-pulse">
-            <Loader2 className="h-4 w-4 animate-spin" /> Calculando Growth Score
+            <Loader2 className="h-4 w-4 animate-spin" /> Calculando Creator Growth Score
           </div>
         </div>
       </div>
@@ -69,8 +71,10 @@ export default function ChannelNew() {
   return (
     <div className="max-w-xl mx-auto mt-10">
       <div className="mb-8">
-        <h1 className="text-3xl font-heading font-bold">Conectar Canal</h1>
-        <p className="text-muted-foreground mt-2">Nossa IA fará uma auditoria completa gratuita.</p>
+        <h1 className="text-3xl font-heading font-bold">Auditoria de Crescimento</h1>
+        <p className="text-muted-foreground mt-2">
+          Nossa IA fará uma auditoria completa gratuita do seu canal.
+        </p>
       </div>
 
       <div className="flex items-center gap-2 mb-8 text-sm font-medium">
@@ -103,7 +107,8 @@ export default function ChannelNew() {
                     id="url"
                     placeholder="https://youtube.com/@seucanal"
                     className="pl-9"
-                    defaultValue="https://youtube.com/@palavraviva"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
                   />
                 </div>
               </div>
