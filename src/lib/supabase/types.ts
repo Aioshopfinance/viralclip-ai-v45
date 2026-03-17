@@ -508,6 +508,8 @@ export const Constants = {
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
 // Table: users
+//   Policy "Users can select own profile" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = id)
 //   Policy "Users can update own profile" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = id)
 //     WITH CHECK: (auth.uid() = id)
@@ -522,18 +524,22 @@ export const Constants = {
 //    SECURITY DEFINER
 //   AS $function$
 //   BEGIN
+//     -- Insert into users table, doing nothing if user already exists
 //     INSERT INTO public.users (id, full_name, email, role)
 //     VALUES (
-//       new.id,
-//       new.raw_user_meta_data->>'full_name',
-//       new.email,
-//       COALESCE(new.raw_user_meta_data->>'role', 'client')
-//     );
+//       NEW.id,
+//       COALESCE(NEW.raw_user_meta_data->>'full_name', 'Usuário'),
+//       NEW.email,
+//       COALESCE(NEW.raw_user_meta_data->>'role', 'client')
+//     )
+//     ON CONFLICT (id) DO NOTHING;
 //
+//     -- Initial signup bonus
 //     INSERT INTO public.credits (user_id, balance)
-//     VALUES (new.id, 500); -- Initial signup bonus
+//     VALUES (NEW.id, 500)
+//     ON CONFLICT (user_id) DO NOTHING;
 //
-//     RETURN new;
+//     RETURN NEW;
 //   END;
 //   $function$
 //

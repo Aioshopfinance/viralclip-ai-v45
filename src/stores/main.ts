@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { MOCK_CHANNELS } from '@/lib/mock-data'
 
 type UserRole = 'client' | 'admin' | string
 
@@ -13,7 +12,6 @@ interface AppState {
     credits: number
   } | null
   isAuthLoading: boolean
-  channels: typeof MOCK_CHANNELS
   login: (email: string, password: string) => Promise<{ error: Error | null }>
   signup: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>
   logout: () => void
@@ -31,7 +29,6 @@ const AppContext = createContext<AppState | undefined>(undefined)
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppState['user']>(null)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
-  const [channels] = useState(MOCK_CHANNELS)
 
   useEffect(() => {
     if (!supabase) {
@@ -201,7 +198,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value: {
         user,
         isAuthLoading,
-        channels,
         login,
         signup,
         logout,

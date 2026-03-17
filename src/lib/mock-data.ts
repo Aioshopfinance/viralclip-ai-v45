@@ -1,24 +1,3 @@
-export const MOCK_CHANNELS = [
-  {
-    id: 'ch_1',
-    name: 'Palavra Viva',
-    platform: 'YouTube',
-    subscribers: '125K',
-    niche: 'Devocional',
-    score: 84,
-    avatar: 'https://img.usecurling.com/i?q=bible&color=gradient',
-  },
-  {
-    id: 'ch_2',
-    name: 'Worship Moments',
-    platform: 'Instagram',
-    subscribers: '45K',
-    niche: 'Louvor',
-    score: 62,
-    avatar: 'https://img.usecurling.com/i?q=music&color=gradient',
-  },
-]
-
 export const MOCK_SERVICES = [
   {
     id: 'srv_1',

@@ -69,21 +69,29 @@ export default function AuditDetail() {
 
     const fetchAudit = async () => {
       try {
+        console.log(
+          `[Audit Debug] Fetching specific audit. Audit_id: ${id}, Session User_id: ${user.id}`,
+        )
+
         const { data, error: fetchErr } = await supabase
           .from('audits')
           .select('*, channels(*)')
           .eq('id', id)
+          .eq('user_id', user.id) // explicitly restricting via query in addition to RLS
           .single()
 
+        console.log(`[Audit Debug] Query status: ${data ? 'found' : 'not_found'}`)
+
         if (fetchErr) throw fetchErr
-        if (!data) throw new Error('Auditoria não encontrada.')
+        if (!data) throw new Error('Auditoria não encontrada ou acesso negado.')
 
         setAudit({
           ...data,
           channel: Array.isArray(data.channels) ? data.channels[0] : data.channels,
         })
       } catch (err: any) {
-        setError(err.message || 'Erro ao carregar auditoria.')
+        console.error('[Audit Debug] Fetch Error:', err)
+        setError(err.message || 'Erro ao carregar auditoria isolada.')
       } finally {
         setLoading(false)
       }
@@ -139,7 +147,9 @@ export default function AuditDetail() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
         <Loader2 className="h-8 w-8 text-primary animate-spin" />
-        <p className="text-muted-foreground animate-pulse">Carregando dados da auditoria...</p>
+        <p className="text-muted-foreground animate-pulse">
+          Carregando dados seguros da auditoria...
+        </p>
       </div>
     )
   }
@@ -148,7 +158,7 @@ export default function AuditDetail() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
         <AlertCircle className="h-12 w-12 text-destructive" />
-        <h2 className="text-2xl font-bold">Oops! Algo deu errado.</h2>
+        <h2 className="text-2xl font-bold">Acesso Restrito ou Falha</h2>
         <p className="text-muted-foreground">{error}</p>
         <Button onClick={() => navigate('/')}>Voltar ao Início</Button>
       </div>
@@ -199,8 +209,8 @@ export default function AuditDetail() {
               Nossa IA está analisando seu canal...
             </h2>
             <p className="text-muted-foreground max-w-md">
-              Avaliando retenção, ganchos e potencial viral. Isso normalmente leva alguns segundos.
-              Não feche esta página.
+              Avaliando retenção, ganchos e potencial viral de forma segura. Isso normalmente leva
+              alguns segundos. Não feche esta página.
             </p>
           </CardContent>
         </Card>
@@ -212,8 +222,7 @@ export default function AuditDetail() {
             <AlertCircle className="h-12 w-12 text-destructive" />
             <h2 className="text-xl font-bold">Falha na Análise</h2>
             <p className="text-muted-foreground">
-              Não foi possível processar a URL informada. Verifique se o link está correto e é
-              público.
+              Não foi possível processar a URL informada de forma segura.
             </p>
             <Button onClick={() => navigate('/')}>Tentar Novamente</Button>
           </CardContent>
@@ -228,7 +237,7 @@ export default function AuditDetail() {
             <CardTitle className="mb-6 font-heading">Growth Score</CardTitle>
             <ScoreGauge score={score} className="w-48" />
             <p className="mt-6 text-sm text-muted-foreground">
-              Baseado na análise de métricas públicas e potencial de conversão.
+              Baseado na análise exclusiva dos dados do seu canal.
             </p>
           </Card>
 
@@ -238,13 +247,12 @@ export default function AuditDetail() {
               <Card className="border-l-4 border-l-emerald-500 shadow-sm">
                 <CardHeader className="pb-2 pt-4">
                   <CardTitle className="text-sm text-emerald-600 uppercase tracking-wider flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4" /> Ponto Forte Identificado
+                    <CheckCircle2 className="h-4 w-4" /> Potencial Identificado
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="font-medium">
-                    {analysis.viral_potential ||
-                      'Seu canal apresenta um excelente nicho de atuação com alta demanda.'}
+                    {analysis.viral_potential || 'Análise segura do canal efetuada.'}
                   </p>
                 </CardContent>
               </Card>
@@ -252,13 +260,12 @@ export default function AuditDetail() {
               <Card className="border-l-4 border-l-amber-500 shadow-sm">
                 <CardHeader className="pb-2 pt-4">
                   <CardTitle className="text-sm text-amber-600 uppercase tracking-wider flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" /> Oportunidade de Melhoria
+                    <AlertCircle className="h-4 w-4" /> Oportunidade Otimizada
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="font-medium">
-                    {analysis.posting_frequency ||
-                      'Frequência de postagem pode ser otimizada para o algoritmo.'}
+                    {analysis.posting_frequency || 'Verifique as sugestões para o algoritmo.'}
                   </p>
                 </CardContent>
               </Card>
@@ -340,7 +347,7 @@ export default function AuditDetail() {
             ) : (
               <div className="space-y-6 mt-8 animate-fade-in-up">
                 <h3 className="text-xl font-heading font-semibold flex items-center gap-2 border-b pb-2">
-                  <Sparkles className="text-secondary h-5 w-5" /> Recomendações da IA
+                  <Sparkles className="text-secondary h-5 w-5" /> Recomendações Exclusivas
                 </h3>
 
                 <div className="grid gap-4">
@@ -357,7 +364,7 @@ export default function AuditDetail() {
 
                   {(!analysis.content_suggestions || analysis.content_suggestions.length === 0) && (
                     <p className="text-muted-foreground">
-                      Nenhuma recomendação específica encontrada.
+                      Nenhuma recomendação específica processada pela IA ainda.
                     </p>
                   )}
                 </div>
@@ -366,13 +373,13 @@ export default function AuditDetail() {
                   <CardHeader>
                     <CardTitle className="text-lg">Próximo Passo</CardTitle>
                     <CardDescription className="text-primary-foreground/80">
-                      Transforme essas ideias em realidade.
+                      Utilize essas métricas reais para gerar conteúdo.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm mb-4">
-                      Vá para o Marketplace de IA e contrate nossos agentes para gerar scripts e
-                      vídeos automaticamente baseados nestes insights.
+                      Vá para o Marketplace de IA e contrate nossos agentes de edição focados nos
+                      insights acima.
                     </p>
                     <Button variant="secondary" onClick={() => navigate('/marketplace')}>
                       Acessar Marketplace
