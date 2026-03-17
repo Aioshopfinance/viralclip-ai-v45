@@ -67,6 +67,7 @@ export type Database = {
           created_at: string
           id: string
           niche: string | null
+          normalized_link: string | null
           platform: string
           status: string | null
           user_id: string
@@ -77,6 +78,7 @@ export type Database = {
           created_at?: string
           id?: string
           niche?: string | null
+          normalized_link?: string | null
           platform: string
           status?: string | null
           user_id: string
@@ -87,6 +89,7 @@ export type Database = {
           created_at?: string
           id?: string
           niche?: string | null
+          normalized_link?: string | null
           platform?: string
           status?: string | null
           user_id?: string
@@ -406,6 +409,7 @@ export const Constants = {
 //   niche: text (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
 //   status: text (nullable, default: 'active'::text)
+//   normalized_link: text (nullable)
 // Table: credits
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (not null)
@@ -581,5 +585,7 @@ export const Constants = {
 //   on_audit_created_update: CREATE TRIGGER on_audit_created_update AFTER UPDATE OF status ON public.audits FOR EACH ROW WHEN (((new.type = 'free_audit'::text) AND (new.status = 'pending'::text) AND (old.status = ANY (ARRAY['failed'::text, 'error'::text])))) EXECUTE FUNCTION trigger_audit_processing()
 
 // --- INDEXES ---
+// Table: channels
+//   CREATE UNIQUE INDEX channels_user_id_normalized_link_idx ON public.channels USING btree (user_id, normalized_link) WHERE (normalized_link IS NOT NULL)
 // Table: credits
 //   CREATE UNIQUE INDEX credits_user_id_key ON public.credits USING btree (user_id)
