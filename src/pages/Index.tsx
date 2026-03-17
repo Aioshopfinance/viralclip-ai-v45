@@ -7,11 +7,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 import useAppStore from '@/stores/main'
+import { supabase } from '@/lib/supabase/client'
 
 export default function Index() {
   const navigate = useNavigate()
   const { toast } = useToast()
-  const { login, signup, isAuthLoading } = useAppStore()
+  const { login, signup, isAuthLoading, startAnonymousSession, user } = useAppStore()
 
   const [url, setUrl] = useState('')
   const [email, setEmail] = useState('')
@@ -54,6 +55,68 @@ export default function Index() {
     }
   }
 
+  const handleFreeAudit = async () => {
+    if (!url) {
+      toast({
+        title: 'Aviso',
+        description: 'Cole a URL do seu canal primeiro.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsLoading(true)
+    let currentUser = user
+
+    try {
+      if (!currentUser) {
+        const { data, error } = await startAnonymousSession()
+        if (error || !data?.user) throw error || new Error('Falha ao iniciar sessão anônima')
+        currentUser = { id: data.user.id } as any
+      }
+
+      const { data: channel, error: cErr } = await supabase
+        .from('channels')
+        .insert({
+          user_id: currentUser!.id,
+          platform: url.includes('instagram')
+            ? 'instagram'
+            : url.includes('tiktok')
+              ? 'tiktok'
+              : 'youtube',
+          channel_link: url,
+          channel_name: 'Analisando Canal...',
+          status: 'active',
+        })
+        .select()
+        .single()
+
+      if (cErr) throw cErr
+
+      const { data: audit, error: aErr } = await supabase
+        .from('audits')
+        .insert({
+          user_id: currentUser!.id,
+          channel_id: channel.id,
+          status: 'pending',
+          type: 'free_audit',
+        })
+        .select()
+        .single()
+
+      if (aErr) throw aErr
+
+      navigate(`/audits/${audit.id}`)
+    } catch (err: any) {
+      toast({
+        title: 'Erro na Auditoria',
+        description: err.message || 'Ocorreu um erro.',
+        variant: 'destructive',
+      })
+      setIsLoading(false)
+    }
+  }
+
   if (isAuthLoading) return null
 
   return (
@@ -89,19 +152,8 @@ export default function Index() {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
             />
-            <Button
-              className="rounded-xl px-6"
-              onClick={() => {
-                if (!email && url) {
-                  toast({
-                    title: 'Crie sua conta',
-                    description: 'Cadastre-se para iniciar sua auditoria gratuita.',
-                  })
-                  setActiveTab('register')
-                }
-                document.getElementById('auth-card')?.scrollIntoView({ behavior: 'smooth' })
-              }}
-            >
+            <Button className="rounded-xl px-6" onClick={handleFreeAudit} disabled={isLoading}>
+              {isLoading ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
               Auditoria Grátis
             </Button>
           </div>
@@ -139,7 +191,7 @@ export default function Index() {
                     />
                   </div>
                   <Button className="w-full" onClick={handleLoginSubmit} disabled={isLoading}>
-                    {isLoading ? (
+                    {isLoading && activeTab === 'login' ? (
                       <Loader2 className="animate-spin h-4 w-4" />
                     ) : (
                       'Entrar no Workspace'
@@ -167,7 +219,7 @@ export default function Index() {
                     />
                   </div>
                   <Button className="w-full" onClick={handleRegisterSubmit} disabled={isLoading}>
-                    {isLoading ? (
+                    {isLoading && activeTab === 'register' ? (
                       <Loader2 className="animate-spin h-4 w-4" />
                     ) : (
                       'Criar Conta Segura'

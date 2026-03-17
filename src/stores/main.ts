@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase/client'
 import { MOCK_CHANNELS } from '@/lib/mock-data'
 
-type UserRole = 'client' | 'admin'
+type UserRole = 'client' | 'admin' | string
 
 interface AppState {
   user: {
@@ -18,6 +18,12 @@ interface AppState {
   signup: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>
   logout: () => void
   deductCredits: (amount: number) => boolean
+  startAnonymousSession: () => Promise<{ data?: any; error: any }>
+  convertAnonymousUser: (
+    email: string,
+    password: string,
+    fullName: string,
+  ) => Promise<{ error: any }>
 }
 
 const AppContext = createContext<AppState | undefined>(undefined)
@@ -57,8 +63,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      const { data: profile } = await supabase!.from('users').select('*').eq('id', userId).single()
-      const { data: credits } = await supabase!
+      const { data: profile } = await supabase.from('users').select('*').eq('id', userId).single()
+      const { data: credits } = await supabase
         .from('credits')
         .select('balance')
         .eq('user_id', userId)
@@ -69,7 +75,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           id: profile.id,
           name: profile.full_name || 'Usuário',
           email: profile.email || '',
-          role: profile.role?.toLowerCase() as 'client' | 'admin',
+          role: profile.role?.toLowerCase() as UserRole,
           credits: credits?.balance || 0,
         })
       } else {
@@ -89,17 +95,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   const login = async (email: string, password: string) => {
-    if (!supabase) {
-      return { error: new Error('Supabase client is not configured.') }
-    }
+    if (!supabase) return { error: new Error('Supabase client is not configured.') }
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     return { error }
   }
 
   const signup = async (email: string, password: string, fullName: string) => {
-    if (!supabase) {
-      return { error: new Error('Supabase client is not configured.') }
-    }
+    if (!supabase) return { error: new Error('Supabase client is not configured.') }
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -135,9 +137,79 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return true
   }
 
+  const startAnonymousSession = async () => {
+    if (!supabase) return { error: new Error('Supabase client is not configured.') }
+
+    setIsAuthLoading(true)
+    try {
+      let { data, error } = await supabase.auth.signInAnonymously()
+
+      if (
+        error &&
+        (error.message.toLowerCase().includes('anonymous') ||
+          error.status === 400 ||
+          error.status === 403)
+      ) {
+        const dummyEmail = `anon_${crypto.randomUUID().slice(0, 8)}@viralclip.ai`
+        const dummyPassword = crypto.randomUUID()
+        const res = await supabase.auth.signUp({
+          email: dummyEmail,
+          password: dummyPassword,
+          options: { data: { full_name: 'Visitante' } },
+        })
+
+        if (!res.error && res.data.user) {
+          await fetchUserProfile(res.data.user.id)
+        } else {
+          setIsAuthLoading(false)
+        }
+        return { data: res.data, error: res.error }
+      }
+
+      if (data?.user) {
+        await fetchUserProfile(data.user.id)
+      } else {
+        setIsAuthLoading(false)
+      }
+      return { data, error }
+    } catch (err: any) {
+      setIsAuthLoading(false)
+      return { error: err }
+    }
+  }
+
+  const convertAnonymousUser = async (email: string, password: string, fullName: string) => {
+    if (!supabase || !user) return { error: new Error('Not connected') }
+
+    const { error } = await supabase.auth.updateUser({
+      email,
+      password,
+      data: { full_name: fullName },
+    })
+
+    if (!error) {
+      await supabase.from('users').update({ email, full_name: fullName }).eq('id', user.id)
+      await fetchUserProfile(user.id)
+    }
+
+    return { error }
+  }
+
   return React.createElement(
     AppContext.Provider,
-    { value: { user, isAuthLoading, channels, login, signup, logout, deductCredits } },
+    {
+      value: {
+        user,
+        isAuthLoading,
+        channels,
+        login,
+        signup,
+        logout,
+        deductCredits,
+        startAnonymousSession,
+        convertAnonymousUser,
+      },
+    },
     children,
   )
 }
