@@ -90,28 +90,29 @@ export default function AuditDetail() {
       const ad = audit.analysis_data
       if (ad.received_url) {
         console.group(`[Audit Debug] Resultado da Auditoria`)
-        console.log(`URL recebida: ${ad.received_url}`)
+        console.log(`URL received: ${ad.received_url}`)
         console.log(
-          `channelId resolvido: ${ad.youtube_channel_id} (Formato: ${ad.resolved_url_type})`,
+          `channelId resolved: ${ad.youtube_channel_id} (Format: ${ad.resolved_url_type})`,
         )
 
         const stats = ad.raw_data?.channel?.items?.[0]?.statistics
         if (stats) {
-          console.log(`Raw API subscriberCount: ${stats.subscriberCount}`)
-          console.log(`Raw API videoCount: ${stats.videoCount}`)
+          console.log(`subscriberCount: ${stats.subscriberCount}`)
+          console.log(`videoCount: ${stats.videoCount}`)
         }
 
         console.log(
-          `Main data from retrieved videos list:`,
+          `Recent Videos:`,
           ad.raw_data?.videos?.items?.map((v: any) => ({
             id: v.id,
+            title: v.snippet?.title,
             views: v.statistics?.viewCount,
             publishedAt: v.snippet?.publishedAt,
           })),
         )
 
-        console.log(`Intermediate metrics:`, ad.metrics)
-        console.log(`Score breakdown:`, ad.score_breakdown)
+        console.log(`Metrics Used:`, ad.metrics)
+        console.log(`Score Breakdown:`, ad.score_breakdown)
         console.groupEnd()
       }
     }
@@ -186,7 +187,7 @@ export default function AuditDetail() {
         <Card className="border-dashed bg-muted/30 text-center py-16">
           <Loader2 className="h-12 w-12 text-secondary mx-auto animate-spin" />
           <h2 className="text-2xl mt-4 font-semibold">Analisando dados reais do canal...</h2>
-          <p className="text-muted-foreground mt-2">Estimativa: 20–40 segundos</p>
+          <p className="text-muted-foreground mt-2">Estimate: 20–40 seconds</p>
         </Card>
       )}
 
@@ -194,7 +195,7 @@ export default function AuditDetail() {
         <Card className="border-destructive/50 bg-destructive/5 text-center py-12">
           <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
           <p className="mt-4 text-lg font-medium text-destructive">
-            Dados reais do YouTube ainda não disponíveis.
+            Real YouTube data currently unavailable
           </p>
           {audit.error_message && (
             <p className="mt-2 text-sm text-muted-foreground max-w-lg mx-auto">

@@ -58,28 +58,29 @@ export default function ChannelAudit() {
       const ad = audit.analysis_data
       if (ad.received_url) {
         console.group(`[Audit Debug] Resultado da Auditoria`)
-        console.log(`URL recebida: ${ad.received_url}`)
+        console.log(`URL received: ${ad.received_url}`)
         console.log(
-          `channelId resolvido: ${ad.youtube_channel_id} (Formato: ${ad.resolved_url_type})`,
+          `channelId resolved: ${ad.youtube_channel_id} (Format: ${ad.resolved_url_type})`,
         )
 
         const stats = ad.raw_data?.channel?.items?.[0]?.statistics
         if (stats) {
-          console.log(`Raw API subscriberCount: ${stats.subscriberCount}`)
-          console.log(`Raw API videoCount: ${stats.videoCount}`)
+          console.log(`subscriberCount: ${stats.subscriberCount}`)
+          console.log(`videoCount: ${stats.videoCount}`)
         }
 
         console.log(
-          `Main data from retrieved videos list:`,
+          `Recent Videos:`,
           ad.raw_data?.videos?.items?.map((v: any) => ({
             id: v.id,
+            title: v.snippet?.title,
             views: v.statistics?.viewCount,
             publishedAt: v.snippet?.publishedAt,
           })),
         )
 
-        console.log(`Intermediate metrics:`, ad.metrics)
-        console.log(`Score breakdown:`, ad.score_breakdown)
+        console.log(`Metrics Used:`, ad.metrics)
+        console.log(`Score Breakdown:`, ad.score_breakdown)
         console.groupEnd()
       }
     }

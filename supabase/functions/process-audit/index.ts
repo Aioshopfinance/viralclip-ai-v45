@@ -206,40 +206,10 @@ Deno.serve(async (req: Request) => {
       throw new Error(`Failed to fetch channel: ${channelError?.message}`)
     }
 
-    const twentyFourHoursAgo = new Date()
-    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24)
-
-    const { data: recentAudit } = await supabase
-      .from('audits')
-      .select('growth_score, analysis_data')
-      .eq('channel_id', channelId)
-      .eq('status', 'completed')
-      .gte('created_at', twentyFourHoursAgo.toISOString())
-      .neq('id', auditId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    if (recentAudit && recentAudit.analysis_data) {
-      console.log(`[Audit Lifecycle] Cache hit for channel: ${channelId}`)
-      await supabase
-        .from('audits')
-        .update({
-          status: 'completed',
-          growth_score: recentAudit.growth_score,
-          analysis_data: recentAudit.analysis_data,
-          error_message: null,
-        })
-        .eq('id', auditId)
-
-      return new Response(JSON.stringify({ success: true, auditId, cached: true }), {
-        headers: { 'Content-Type': 'application/json' },
-      })
-    }
-
     const apiKey = Deno.env.get('YOUTUBE_API_KEY')
     if (!apiKey) {
-      throw new Error('Não foi possível obter dados reais do canal: YOUTUBE_API_KEY ausente.')
+      console.error('[Audit Lifecycle] YOUTUBE_API_KEY not found in environment.')
+      throw new Error('YOUTUBE_API_KEY not found')
     }
 
     let ytChannelId, urlType, channelData, searchData, videosData
@@ -281,6 +251,14 @@ Deno.serve(async (req: Request) => {
         videos: videosData,
       },
       content_suggestions,
+    }
+
+    // Update the channel name dynamically from YouTube's API real data
+    if (channelData && channelData.items && channelData.items.length > 0) {
+      const channelTitle = channelData.items[0].snippet?.title
+      if (channelTitle) {
+        await supabase.from('channels').update({ channel_name: channelTitle }).eq('id', channelId)
+      }
     }
 
     const { error: updateError } = await supabase
