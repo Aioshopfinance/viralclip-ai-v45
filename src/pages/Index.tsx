@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabase/client'
 export default function Index() {
   const navigate = useNavigate()
   const { toast } = useToast()
-  const { login, signup, isAuthLoading, startAnonymousSession, user } = useAppStore()
+  const { login, signup, isAuthLoading, user } = useAppStore()
 
   const [url, setUrl] = useState('')
   const [email, setEmail] = useState('')
@@ -65,20 +65,23 @@ export default function Index() {
       return
     }
 
+    if (!user) {
+      toast({
+        title: 'Autenticação Necessária',
+        description: 'Faça login ou cadastre-se para solicitar a auditoria grátis.',
+        variant: 'destructive',
+      })
+      document.getElementById('auth-card')?.scrollIntoView({ behavior: 'smooth' })
+      return
+    }
+
     setIsLoading(true)
-    let currentUser = user
 
     try {
-      if (!currentUser) {
-        const { data, error } = await startAnonymousSession()
-        if (error || !data?.user) throw error || new Error('Falha ao iniciar sessão anônima')
-        currentUser = { id: data.user.id } as any
-      }
-
       const { data: channel, error: cErr } = await supabase
         .from('channels')
         .insert({
-          user_id: currentUser!.id,
+          user_id: user.id,
           platform: url.includes('instagram')
             ? 'instagram'
             : url.includes('tiktok')
@@ -96,7 +99,7 @@ export default function Index() {
       const { data: audit, error: aErr } = await supabase
         .from('audits')
         .insert({
-          user_id: currentUser!.id,
+          user_id: user.id,
           channel_id: channel.id,
           status: 'pending',
           type: 'free_audit',
@@ -108,9 +111,13 @@ export default function Index() {
 
       navigate(`/audits/${audit.id}`)
     } catch (err: any) {
+      let description = err.message || 'Ocorreu um erro.'
+      if (err.code === '42501' || err.message?.includes('RLS')) {
+        description = 'Sua sessão expirou ou você não tem permissão. Faça login novamente.'
+      }
       toast({
         title: 'Erro na Auditoria',
-        description: err.message || 'Ocorreu um erro.',
+        description,
         variant: 'destructive',
       })
       setIsLoading(false)
@@ -153,7 +160,9 @@ export default function Index() {
               onChange={(e) => setUrl(e.target.value)}
             />
             <Button className="rounded-xl px-6" onClick={handleFreeAudit} disabled={isLoading}>
-              {isLoading ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
+              {isLoading && activeTab === 'login' ? (
+                <Loader2 className="animate-spin h-4 w-4 mr-2" />
+              ) : null}
               Auditoria Grátis
             </Button>
           </div>
