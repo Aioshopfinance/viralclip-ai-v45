@@ -31,7 +31,8 @@ export interface Audit {
   channel_id: string
   growth_score?: number
   analysis_data?: Record<string, any>
-  status: 'pending' | 'completed' | string
+  status: 'pending' | 'completed' | 'failed' | 'error' | string
+  error_message?: string | null
   created_at: string
 }
 

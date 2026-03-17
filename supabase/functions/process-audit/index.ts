@@ -16,11 +16,12 @@ Deno.serve(async (req: Request) => {
     auditId = record.id
     const channelId = record.channel_id
 
+    console.log(`[Audit Lifecycle] Processing Started: ${auditId}`)
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Fetch channel details
     const { data: channel, error: channelError } = await supabase
       .from('channels')
       .select('*')
@@ -34,9 +35,13 @@ Deno.serve(async (req: Request) => {
     // Simulate AI processing time
     await new Promise((resolve) => setTimeout(resolve, 2500))
 
-    // Generate mocked AI response based on channel data
-    const growthScore = Math.floor(Math.random() * 31) + 65 // 65-95
+    // Simulate an error for demonstration if the URL contains "fail"
+    if (channel.channel_link && channel.channel_link.toLowerCase().includes('fail')) {
+      throw new Error('Analysis failed due to simulated error (URL contained "fail").')
+    }
 
+    // Generate mocked AI response
+    const growthScore = Math.floor(Math.random() * 31) + 65 // 65-95
     const analysisData = {
       score: growthScore,
       posting_frequency:
@@ -50,13 +55,13 @@ Deno.serve(async (req: Request) => {
       ],
     }
 
-    // Update audit record
     const { error: updateError } = await supabase
       .from('audits')
       .update({
         status: 'completed',
         growth_score: growthScore,
         analysis_data: analysisData,
+        error_message: null,
       })
       .eq('id', auditId)
 
@@ -64,14 +69,20 @@ Deno.serve(async (req: Request) => {
       throw new Error(`Failed to update audit: ${updateError.message}`)
     }
 
+    console.log(`[Audit Lifecycle] Processing Finished: ${auditId}`)
+    console.log(`[Audit Lifecycle] Completed Success: ${auditId}`)
+
     return new Response(JSON.stringify({ success: true, auditId }), {
       headers: { 'Content-Type': 'application/json' },
     })
   } catch (error: any) {
-    console.error('Error processing audit:', error)
+    console.error(`[Audit Lifecycle] Failed: ${auditId || 'unknown'} - Error: ${error.message}`)
 
     if (supabase && auditId) {
-      await supabase.from('audits').update({ status: 'error' }).eq('id', auditId)
+      await supabase
+        .from('audits')
+        .update({ status: 'failed', error_message: error.message })
+        .eq('id', auditId)
     }
 
     return new Response(JSON.stringify({ error: error.message }), {

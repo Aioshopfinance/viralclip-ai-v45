@@ -1,34 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import {
-  Activity,
-  Plus,
-  TrendingUp,
-  Sparkles,
-  Youtube,
-  Instagram,
-  Video,
-  AlertCircle,
-} from 'lucide-react'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-  CardDescription,
-} from '@/components/ui/card'
+import { Plus, TrendingUp, Sparkles, Youtube } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { ScoreGauge } from '@/components/shared/ScoreGauge'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
-import type { Database } from '@/lib/supabase/types'
-
-type BaseChannel = Database['public']['Tables']['channels']['Row']
-type BaseAudit = Database['public']['Tables']['audits']['Row']
-type ChannelWithAudits = BaseChannel & { audits: (BaseAudit & { type?: string })[] }
+import { ChannelCard, type ChannelWithAudits } from '@/components/dashboard/ChannelCard'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -37,99 +15,183 @@ export default function Dashboard() {
   const [auditUrl, setAuditUrl] = useState('')
   const [channels, setChannels] = useState<ChannelWithAudits[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isCreating, setIsCreating] = useState(false)
+
+  // Fetch Channels Logic
+  const fetchChannels = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('channels')
+        .select(`*, audits(*)`)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      if (data) setChannels(data as ChannelWithAudits[])
+    } catch (error: any) {
+      console.error('Error fetching channels:', error)
+      toast({
+        title: 'Erro',
+        description: 'Falha ao buscar os dados do painel.',
+        variant: 'destructive',
+      })
+    }
+  }
 
   useEffect(() => {
     let subscription: any
+    let userId = ''
 
     const initDashboard = async () => {
-      try {
-        const {
-          data: { user: authUser },
-          error: authErr,
-        } = await supabase.auth.getUser()
-
-        if (authErr || !authUser) {
-          toast({
-            title: 'Erro de Sessão',
-            description: 'Autenticação necessária para acessar o painel.',
-            variant: 'destructive',
-          })
-          setIsLoading(false)
-          return
-        }
-
-        const uid = authUser.id
-
-        const fetchChannels = async () => {
-          try {
-            const { data, error } = await supabase
-              .from('channels')
-              .select(`*, audits(*)`)
-              .eq('user_id', uid)
-              .order('created_at', { ascending: false })
-
-            if (error) {
-              let description = error.message || 'Falha ao buscar os dados do painel.'
-              if (error.code === '42501') {
-                description = 'Acesso negado aos canais (Violação de RLS).'
-              }
-              toast({
-                title: 'Erro de Consulta',
-                description,
-                variant: 'destructive',
-              })
-              return
-            }
-
-            if (data) setChannels(data as ChannelWithAudits[])
-          } catch (error: any) {
-            console.error('Error fetching channels:', error)
-          } finally {
-            setIsLoading(false)
-          }
-        }
-
-        await fetchChannels()
-
-        subscription = supabase
-          .channel('dashboard-updates')
-          .on(
-            'postgres_changes',
-            { event: '*', schema: 'public', table: 'audits', filter: `user_id=eq.${uid}` },
-            fetchChannels,
-          )
-          .on(
-            'postgres_changes',
-            { event: '*', schema: 'public', table: 'channels', filter: `user_id=eq.${uid}` },
-            fetchChannels,
-          )
-          .subscribe()
-      } catch (err) {
-        console.error('Init dashboard error:', err)
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
         setIsLoading(false)
+        return
       }
+      userId = user.id
+      await fetchChannels(userId)
+      setIsLoading(false)
+
+      subscription = supabase
+        .channel('dashboard-updates')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'audits', filter: `user_id=eq.${userId}` },
+          () => fetchChannels(userId),
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'channels', filter: `user_id=eq.${userId}` },
+          () => fetchChannels(userId),
+        )
+        .subscribe()
     }
 
     initDashboard()
 
+    // Monitor for stuck pending audits
+    const timeoutInterval = setInterval(() => {
+      setChannels((prev) => {
+        prev.forEach((ch) => {
+          const latest = [...(ch.audits || [])].sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+          )[0]
+          if (latest?.status === 'pending') {
+            const age = Date.now() - new Date(latest.created_at).getTime()
+            if (age > 45000) {
+              // 45 seconds timeout
+              console.log(`[Audit Lifecycle] Failed: ${latest.id} - Error: Timeout exceeded`)
+              supabase
+                .from('audits')
+                .update({
+                  status: 'failed',
+                  error_message: 'Tempo limite excedido na análise da IA.',
+                })
+                .eq('id', latest.id)
+                .then()
+            }
+          }
+        })
+        return prev
+      })
+    }, 10000)
+
     return () => {
-      if (subscription) {
-        supabase.removeChannel(subscription)
-      }
+      if (subscription) supabase.removeChannel(subscription)
+      clearInterval(timeoutInterval)
     }
   }, [toast])
 
-  const handleAudit = () =>
-    navigate(auditUrl ? '/channels/new?url=' + encodeURIComponent(auditUrl) : '/channels/new')
+  const handleCreateAudit = async () => {
+    if (!auditUrl) {
+      toast({
+        title: 'Aviso',
+        description: 'Insira a URL do canal (tente usar a palavra "fail" para simular erro).',
+      })
+      return
+    }
 
-  const totalAudits = channels.reduce((sum, channel) => sum + (channel.audits?.length || 0), 0)
+    setIsCreating(true)
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error('Autenticação necessária')
+
+      let channelId = ''
+      const { data: existingChannel } = await supabase
+        .from('channels')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('channel_link', auditUrl)
+        .maybeSingle()
+
+      if (existingChannel) {
+        channelId = existingChannel.id
+      } else {
+        const { data: newChannel, error: chErr } = await supabase
+          .from('channels')
+          .insert({
+            user_id: user.id,
+            channel_link: auditUrl,
+            platform: auditUrl.includes('instagram')
+              ? 'instagram'
+              : auditUrl.includes('tiktok')
+                ? 'tiktok'
+                : 'youtube',
+            channel_name: 'Novo Canal Detectado',
+          })
+          .select()
+          .single()
+        if (chErr) throw chErr
+        channelId = newChannel.id
+      }
+
+      const { data: newAudit, error: auditErr } = await supabase
+        .from('audits')
+        .insert({ user_id: user.id, channel_id: channelId, status: 'pending', type: 'free_audit' })
+        .select()
+        .single()
+
+      if (auditErr) throw auditErr
+
+      console.log(
+        `[Audit Lifecycle] Created: ${newAudit.id} | Channel: ${channelId} | User: ${user.id} | Status: pending`,
+      )
+
+      setAuditUrl('')
+      toast({ title: 'Auditoria Iniciada', description: 'A IA está analisando seu canal.' })
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const handleRetryAudit = async (auditId: string) => {
+    try {
+      console.log(`[Audit Lifecycle] Created (Retry): ${auditId}`)
+      toast({ title: 'Retentando auditoria...', description: 'Aguarde o processamento.' })
+
+      const { error } = await supabase
+        .from('audits')
+        .update({ status: 'pending', error_message: null })
+        .eq('id', auditId)
+
+      if (error) throw error
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+    }
+  }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-fade-in">
       <div>
         <h1 className="text-3xl font-heading font-bold">Visão Geral</h1>
         <p className="text-muted-foreground mt-1">
-          Bem-vindo de volta. Acompanhe o progresso das suas auditorias.
+          Acompanhe o progresso das suas auditorias por canal.
         </p>
       </div>
 
@@ -137,21 +199,32 @@ export default function Dashboard() {
         <Card className="col-span-1 md:col-span-3 border-secondary/30 bg-secondary/5 relative overflow-hidden">
           <CardHeader className="pb-2">
             <CardTitle className="text-xl flex items-center gap-2">
-              <Youtube className="h-6 w-6 text-secondary" /> Auditoria Gratuita com IA
+              <Youtube className="h-6 w-6 text-secondary" /> Nova Auditoria IA
             </CardTitle>
             <CardDescription>
-              Nossa IA analisa seu canal para encontrar oportunidades virais.
+              Cole a URL para gerar um canal único e analisar as métricas.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col sm:flex-row gap-3 pt-4">
             <Input
-              placeholder="Cole a URL do seu canal..."
+              placeholder="Ex: https://youtube.com/@meucanal (use 'fail' na URL para simular erro)"
               value={auditUrl}
               onChange={(e) => setAuditUrl(e.target.value)}
               className="bg-background max-w-xl"
+              onKeyDown={(e) => e.key === 'Enter' && handleCreateAudit()}
             />
-            <Button size="lg" onClick={handleAudit} className="gap-2 shrink-0">
-              <Sparkles className="h-4 w-4" /> Rodar Auditoria
+            <Button
+              size="lg"
+              onClick={handleCreateAudit}
+              disabled={isCreating}
+              className="gap-2 shrink-0"
+            >
+              {isCreating ? (
+                <div className="animate-spin h-4 w-4 border-2 border-primary-foreground border-b-transparent rounded-full" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              Rodar Auditoria
             </Button>
           </CardContent>
         </Card>
@@ -164,9 +237,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold font-heading">{channels.length}</div>
-            <p className="text-primary-foreground/70 text-sm mt-1">
-              {totalAudits} auditorias realizadas
-            </p>
+            <p className="text-primary-foreground/70 text-sm mt-1">Unidades exclusivas</p>
           </CardContent>
         </Card>
       </div>
@@ -174,9 +245,6 @@ export default function Dashboard() {
       <div>
         <div className="flex justify-between items-end mb-4">
           <h2 className="text-xl font-heading font-semibold">Canais Ativos</h2>
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/channels/new">Ver todos</Link>
-          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -185,86 +253,14 @@ export default function Dashboard() {
               <div className="animate-spin h-8 w-8 border-b-2 border-primary rounded-full" />
             </div>
           ) : (
-            channels.map((channel) => {
-              const audit = channel.audits?.sort(
-                (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-              )[0]
-              const score = audit?.growth_score || 0
-              const status = audit?.status || 'pending'
-              const PlatformIcon =
-                channel.platform === 'instagram'
-                  ? Instagram
-                  : channel.platform === 'tiktok'
-                    ? Video
-                    : Youtube
-
-              return (
-                <Card key={channel.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-6 flex flex-col md:flex-row items-center gap-6">
-                    <div className="flex-1 w-full flex items-center gap-4">
-                      <div className="h-16 w-16 rounded-full border-2 border-muted bg-secondary/10 flex items-center justify-center shrink-0">
-                        <PlatformIcon className="h-8 w-8 text-secondary" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-lg line-clamp-1">
-                          {channel.channel_name || 'Novo Canal'}
-                        </h3>
-                        <div className="flex items-center gap-2 text-sm mt-1">
-                          <Badge variant="outline" className="capitalize">
-                            {channel.platform}
-                          </Badge>
-                          <Badge
-                            variant={
-                              status === 'pending'
-                                ? 'secondary'
-                                : status === 'error'
-                                  ? 'destructive'
-                                  : 'default'
-                            }
-                            className="text-xs"
-                          >
-                            {status === 'pending'
-                              ? 'Auditando...'
-                              : status === 'error'
-                                ? 'Falhou'
-                                : 'Concluído'}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="w-24 shrink-0">
-                      <ScoreGauge score={score} />
-                    </div>
-                  </CardContent>
-                  <CardFooter className="bg-muted/30 border-t p-4 flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      {status === 'error' ? (
-                        <>
-                          <AlertCircle className="h-3 w-3 text-destructive" /> Erro na análise
-                        </>
-                      ) : (
-                        <>
-                          <Activity className="h-3 w-3" /> Audit: {status}
-                        </>
-                      )}
-                    </span>
-                    <Button size="sm" asChild disabled={status === 'pending' || status === 'error'}>
-                      <Link to={status === 'completed' ? `/channels/${channel.id}/audit` : '#'}>
-                        {status === 'pending'
-                          ? 'Aguarde...'
-                          : status === 'error'
-                            ? 'Falhou'
-                            : 'Ver Relatório'}
-                      </Link>
-                    </Button>
-                  </CardFooter>
-                </Card>
-              )
-            })
+            channels.map((channel) => (
+              <ChannelCard key={channel.id} channel={channel} onRetry={handleRetryAudit} />
+            ))
           )}
+
           <Card
             className="border-dashed flex flex-col items-center justify-center text-muted-foreground hover:bg-muted/50 cursor-pointer min-h-[160px]"
-            onClick={() => navigate('/channels/new')}
+            onClick={() => document.querySelector('input')?.focus()}
           >
             <Plus className="h-8 w-8 mb-2 opacity-50" />
             <span className="font-medium">Adicionar Novo Canal</span>

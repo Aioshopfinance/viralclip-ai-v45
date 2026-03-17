@@ -2,8 +2,6 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: '14.4'
   }
@@ -19,6 +17,7 @@ export type Database = {
           status: string
           type: string | null
           user_id: string
+          error_message: string | null
         }
         Insert: {
           analysis_data?: Json | null
@@ -29,6 +28,7 @@ export type Database = {
           status?: string
           type?: string | null
           user_id: string
+          error_message?: string | null
         }
         Update: {
           analysis_data?: Json | null
@@ -39,6 +39,7 @@ export type Database = {
           status?: string
           type?: string | null
           user_id?: string
+          error_message?: string | null
         }
         Relationships: [
           {
@@ -254,7 +255,6 @@ export type Database = {
 }
 
 type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
-
 type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, 'public'>]
 
 export type Tables<
@@ -267,9 +267,7 @@ export type Tables<
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
       DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])[TableName] extends {
       Row: infer R
@@ -293,18 +291,14 @@ export type TablesInsert<
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
-    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
+    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends { Insert: infer I }
       ? I
       : never
     : never
@@ -318,54 +312,16 @@ export type TablesUpdate<
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
       Update: infer U
     }
     ? U
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
-    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
+    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends { Update: infer U }
       ? U
       : never
-    : never
-
-export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema['Enums']
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums']
-    : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums'][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums']
-    ? DefaultSchema['Enums'][DefaultSchemaEnumNameOrOptions]
-    : never
-
-export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema['CompositeTypes']
-    | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes'][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema['CompositeTypes']
-    ? DefaultSchema['CompositeTypes'][PublicCompositeTypeNameOrOptions]
     : never
 
 export const Constants = {
@@ -373,208 +329,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
-// ====== DATABASE EXTENDED CONTEXT (auto-generated) ======
-// This section contains actual PostgreSQL column types, constraints, RLS policies,
-// functions, triggers, indexes and materialized views not present in the type definitions above.
-// IMPORTANT: The TypeScript types above map UUID, TEXT, VARCHAR all to "string".
-// Use the COLUMN TYPES section below to know the real PostgreSQL type for each column.
-// Always use the correct PostgreSQL type when writing SQL migrations.
-
-// --- COLUMN TYPES (actual PostgreSQL types) ---
-// Use this to know the real database type when writing migrations.
-// "string" in TypeScript types above may be uuid, text, varchar, timestamptz, etc.
-// Table: audits
-//   id: uuid (not null, default: gen_random_uuid())
-//   user_id: uuid (not null)
-//   channel_id: uuid (not null)
-//   growth_score: integer (nullable)
-//   analysis_data: jsonb (nullable)
-//   status: text (not null, default: 'pending'::text)
-//   created_at: timestamp with time zone (not null, default: now())
-//   type: text (nullable, default: 'free_audit'::text)
-// Table: channels
-//   id: uuid (not null, default: gen_random_uuid())
-//   user_id: uuid (not null)
-//   platform: text (not null)
-//   channel_name: text (nullable)
-//   channel_link: text (nullable)
-//   niche: text (nullable)
-//   created_at: timestamp with time zone (not null, default: now())
-//   status: text (nullable, default: 'active'::text)
-// Table: credits
-//   id: uuid (not null, default: gen_random_uuid())
-//   user_id: uuid (not null)
-//   balance: integer (not null, default: 0)
-//   updated_at: timestamp with time zone (not null, default: now())
-// Table: projects
-//   id: uuid (not null, default: gen_random_uuid())
-//   user_id: uuid (not null)
-//   channel_id: uuid (not null)
-//   service_name: text (not null)
-//   status: text (not null, default: 'pending'::text)
-//   deliverables: jsonb (nullable)
-//   updated_at: timestamp with time zone (not null, default: now())
-//   created_at: timestamp with time zone (not null, default: timezone('utc'::text, now()))
-// Table: transactions
-//   id: uuid (not null, default: gen_random_uuid())
-//   user_id: uuid (not null)
-//   amount: integer (not null)
-//   type: text (not null)
-//   description: text (nullable)
-//   created_at: timestamp with time zone (not null, default: now())
-// Table: users
-//   id: uuid (not null)
-//   full_name: text (not null)
-//   email: text (not null)
-//   avatar_url: text (nullable)
-//   role: text (nullable, default: 'client'::text)
-//   created_at: timestamp with time zone (not null, default: now())
-
-// --- CONSTRAINTS ---
-// Table: audits
-//   FOREIGN KEY audits_channel_id_fkey: FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE
-//   PRIMARY KEY audits_pkey: PRIMARY KEY (id)
-//   FOREIGN KEY audits_user_id_fkey: FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-// Table: channels
-//   PRIMARY KEY channels_pkey: PRIMARY KEY (id)
-//   FOREIGN KEY channels_user_id_fkey: FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-// Table: credits
-//   PRIMARY KEY credits_pkey: PRIMARY KEY (id)
-//   FOREIGN KEY credits_user_id_fkey: FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-//   UNIQUE credits_user_id_key: UNIQUE (user_id)
-// Table: projects
-//   FOREIGN KEY projects_channel_id_fkey: FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE
-//   PRIMARY KEY projects_pkey: PRIMARY KEY (id)
-//   FOREIGN KEY projects_user_id_fkey: FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-// Table: transactions
-//   PRIMARY KEY transactions_pkey: PRIMARY KEY (id)
-//   CHECK transactions_type_check: CHECK ((type = ANY (ARRAY['credit_purchase'::text, 'service_usage'::text])))
-//   FOREIGN KEY transactions_user_id_fkey: FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-// Table: users
-//   FOREIGN KEY users_id_fkey: FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
-//   PRIMARY KEY users_pkey: PRIMARY KEY (id)
-//   CHECK users_role_check: CHECK ((role = ANY (ARRAY['visitor'::text, 'client'::text, 'affiliate'::text, 'collaborator'::text, 'administrator'::text, 'operator_ia'::text])))
-
-// --- ROW LEVEL SECURITY POLICIES ---
-// Table: audits
-//   Policy "Users can delete own audits" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//   Policy "Users can insert own audits" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (auth.uid() = user_id)
-//   Policy "Users can select own audits" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//   Policy "Users can update own audits" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//     WITH CHECK: (auth.uid() = user_id)
-// Table: channels
-//   Policy "Users can delete own channels" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//   Policy "Users can insert own channels" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (auth.uid() = user_id)
-//   Policy "Users can select own channels" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//   Policy "Users can update own channels" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//     WITH CHECK: (auth.uid() = user_id)
-// Table: credits
-//   Policy "Users can delete own credits" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//   Policy "Users can insert own credits" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (auth.uid() = user_id)
-//   Policy "Users can select own credits" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//   Policy "Users can update own credits" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//     WITH CHECK: (auth.uid() = user_id)
-// Table: projects
-//   Policy "Users can delete own projects" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//   Policy "Users can insert own projects" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (auth.uid() = user_id)
-//   Policy "Users can select own projects" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//   Policy "Users can update own projects" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//     WITH CHECK: (auth.uid() = user_id)
-// Table: transactions
-//   Policy "Users can delete own transactions" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//   Policy "Users can insert own transactions" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (auth.uid() = user_id)
-//   Policy "Users can select own transactions" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//   Policy "Users can update own transactions" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//     WITH CHECK: (auth.uid() = user_id)
-// Table: users
-//   Policy "Users can select own profile" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = id)
-//   Policy "Users can update own profile" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = id)
-//     WITH CHECK: (auth.uid() = id)
-//   Policy "Users can view own profile" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = id)
-
-// --- DATABASE FUNCTIONS ---
-// FUNCTION handle_new_user()
-//   CREATE OR REPLACE FUNCTION public.handle_new_user()
-//    RETURNS trigger
-//    LANGUAGE plpgsql
-//    SECURITY DEFINER
-//   AS $function$
-//   BEGIN
-//     -- Insert into users table, doing nothing if user already exists
-//     INSERT INTO public.users (id, full_name, email, role)
-//     VALUES (
-//       NEW.id,
-//       COALESCE(NEW.raw_user_meta_data->>'full_name', 'Usuário'),
-//       NEW.email,
-//       COALESCE(NEW.raw_user_meta_data->>'role', 'client')
-//     )
-//     ON CONFLICT (id) DO NOTHING;
-//
-//     -- Initial signup bonus
-//     INSERT INTO public.credits (user_id, balance)
-//     VALUES (NEW.id, 500)
-//     ON CONFLICT (user_id) DO NOTHING;
-//
-//     RETURN NEW;
-//   END;
-//   $function$
-//
-// FUNCTION trigger_audit_processing()
-//   CREATE OR REPLACE FUNCTION public.trigger_audit_processing()
-//    RETURNS trigger
-//    LANGUAGE plpgsql
-//    SECURITY DEFINER
-//   AS $function$
-//   DECLARE
-//     edge_function_url text;
-//     anon_key text;
-//   BEGIN
-//     -- URL and anon key based on the environment configuration
-//     edge_function_url := 'https://bmgxudjhfojeylsvsddt.supabase.co/functions/v1/process-audit';
-//     anon_key := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtZ3h1ZGpoZm9qZXlsc3ZzZGR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2OTc4MDQsImV4cCI6MjA4OTI3MzgwNH0.7325VwfD2YBBcZasDWrxXGFxglEV58R_53Um0LMqjEY';
-//
-//     PERFORM net.http_post(
-//       url := edge_function_url,
-//       headers := jsonb_build_object(
-//         'Content-Type', 'application/json',
-//         'Authorization', 'Bearer ' || anon_key
-//       ),
-//       body := json_build_object('record', row_to_json(NEW))::jsonb
-//     );
-//
-//     RETURN NEW;
-//   END;
-//   $function$
-//
-
-// --- TRIGGERS ---
-// Table: audits
-//   on_audit_created: CREATE TRIGGER on_audit_created AFTER INSERT ON public.audits FOR EACH ROW WHEN (((new.type = 'free_audit'::text) AND (new.status = 'pending'::text))) EXECUTE FUNCTION trigger_audit_processing()
-
-// --- INDEXES ---
-// Table: credits
-//   CREATE UNIQUE INDEX credits_user_id_key ON public.credits USING btree (user_id)
