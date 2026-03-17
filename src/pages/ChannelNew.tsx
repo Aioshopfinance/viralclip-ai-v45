@@ -24,6 +24,7 @@ export default function ChannelNew() {
   const [platform, setPlatform] = useState('youtube')
   const [name, setName] = useState('')
   const [niche, setNiche] = useState('devocional')
+  const [customNiche, setCustomNiche] = useState('')
   const [step, setStep] = useState(1)
   const [isProcessing, setIsProcessing] = useState(false)
   const navigate = useNavigate()
@@ -40,6 +41,13 @@ export default function ChannelNew() {
       }
       setStep(step + 1)
     } else {
+      if (niche === 'outros' && !customNiche.trim()) {
+        return toast({
+          title: 'Atenção',
+          description: 'Por favor, descreva seu nicho.',
+          variant: 'destructive',
+        })
+      }
       submitChannel()
     }
   }
@@ -58,6 +66,7 @@ export default function ChannelNew() {
       }
 
       const uid = authUser.id
+      const finalNiche = niche === 'outros' ? customNiche.trim() : niche
 
       const { data: channel, error: cErr } = await supabase
         .from('channels')
@@ -66,7 +75,7 @@ export default function ChannelNew() {
           platform,
           channel_name: name,
           channel_link: url,
-          niche,
+          niche: finalNiche,
           status: 'active',
         })
         .select()
@@ -173,7 +182,13 @@ export default function ChannelNew() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Nicho Principal</Label>
-                <Select value={niche} onValueChange={setNiche}>
+                <Select
+                  value={niche}
+                  onValueChange={(val) => {
+                    setNiche(val)
+                    if (val !== 'outros') setCustomNiche('')
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
@@ -182,9 +197,21 @@ export default function ChannelNew() {
                     <SelectItem value="pregacao">Pregações / Sermões</SelectItem>
                     <SelectItem value="louvor">Louvor e Adoração</SelectItem>
                     <SelectItem value="podcast">Podcast Cristão</SelectItem>
+                    <SelectItem value="outros">Outros</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {niche === 'outros' && (
+                <div className="space-y-2 animate-fade-in-up">
+                  <Label>Descreva seu nicho</Label>
+                  <Input
+                    placeholder="Ex: Finanças para Cristãos"
+                    value={customNiche}
+                    onChange={(e) => setCustomNiche(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
           )}
           <div className="flex justify-end gap-3 pt-4 border-t">
