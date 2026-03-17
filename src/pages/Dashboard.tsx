@@ -10,7 +10,6 @@ import {
   Video,
   AlertCircle,
 } from 'lucide-react'
-import useAppStore from '@/stores/main'
 import {
   Card,
   CardContent,
@@ -32,7 +31,6 @@ type BaseAudit = Database['public']['Tables']['audits']['Row']
 type ChannelWithAudits = BaseChannel & { audits: (BaseAudit & { type?: string })[] }
 
 export default function Dashboard() {
-  const { user } = useAppStore()
   const navigate = useNavigate()
   const { toast } = useToast()
 
@@ -41,62 +39,85 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (!user) return
+    let subscription: any
 
-    const isUUID =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id)
-    if (!isUUID) {
-      toast({
-        title: 'Erro de Sessão',
-        description: 'Identificador de usuário inválido para realizar consultas.',
-        variant: 'destructive',
-      })
-      setIsLoading(false)
-      return
-    }
-
-    const fetchChannels = async () => {
+    const initDashboard = async () => {
       try {
-        const { data, error } = await supabase
-          .from('channels')
-          .select(`*, audits(*)`)
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
+        const {
+          data: { user: authUser },
+          error: authErr,
+        } = await supabase.auth.getUser()
 
-        if (error) throw error
-        if (data) setChannels(data as ChannelWithAudits[])
-      } catch (error: any) {
-        console.error('Error fetching channels:', error)
-        toast({
-          title: 'Erro de Consulta',
-          description: error.message || 'Falha ao buscar os dados do painel.',
-          variant: 'destructive',
-        })
-      } finally {
+        if (authErr || !authUser) {
+          toast({
+            title: 'Erro de Sessão',
+            description: 'Autenticação necessária para acessar o painel.',
+            variant: 'destructive',
+          })
+          setIsLoading(false)
+          return
+        }
+
+        const uid = authUser.id
+
+        const fetchChannels = async () => {
+          try {
+            const { data, error } = await supabase
+              .from('channels')
+              .select(`*, audits(*)`)
+              .eq('user_id', uid)
+              .order('created_at', { ascending: false })
+
+            if (error) {
+              let description = error.message || 'Falha ao buscar os dados do painel.'
+              if (error.code === '42501') {
+                description = 'Acesso negado aos canais (Violação de RLS).'
+              }
+              toast({
+                title: 'Erro de Consulta',
+                description,
+                variant: 'destructive',
+              })
+              return
+            }
+
+            if (data) setChannels(data as ChannelWithAudits[])
+          } catch (error: any) {
+            console.error('Error fetching channels:', error)
+          } finally {
+            setIsLoading(false)
+          }
+        }
+
+        await fetchChannels()
+
+        subscription = supabase
+          .channel('dashboard-updates')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'audits', filter: `user_id=eq.${uid}` },
+            fetchChannels,
+          )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'channels', filter: `user_id=eq.${uid}` },
+            fetchChannels,
+          )
+          .subscribe()
+      } catch (err) {
+        console.error('Init dashboard error:', err)
         setIsLoading(false)
       }
     }
 
-    fetchChannels()
-
-    const subscription = supabase
-      .channel('dashboard-updates')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'audits', filter: `user_id=eq.${user.id}` },
-        fetchChannels,
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'channels', filter: `user_id=eq.${user.id}` },
-        fetchChannels,
-      )
-      .subscribe()
+    initDashboard()
 
     return () => {
-      supabase.removeChannel(subscription)
+      if (subscription) {
+        supabase.removeChannel(subscription)
+      }
     }
-  }, [user, toast])
+  }, [toast])
 
   const handleAudit = () =>
     navigate(auditUrl ? '/channels/new?url=' + encodeURIComponent(auditUrl) : '/channels/new')

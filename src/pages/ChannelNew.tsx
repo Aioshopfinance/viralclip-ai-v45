@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Bot, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -13,14 +13,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
-import useAppStore from '@/stores/main'
 import { supabase } from '@/lib/supabase/client'
 import type { Database } from '@/lib/supabase/types'
 
 type AuditInsert = Database['public']['Tables']['audits']['Insert'] & { type: string }
 
 export default function ChannelNew() {
-  const { user } = useAppStore()
   const [searchParams] = useSearchParams()
   const [url, setUrl] = useState(searchParams.get('url') || '')
   const [platform, setPlatform] = useState('youtube')
@@ -47,25 +45,24 @@ export default function ChannelNew() {
   }
 
   const submitChannel = async () => {
-    if (!user) return
     setIsProcessing(true)
 
-    const isUUID =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id)
-    if (!isUUID) {
-      setIsProcessing(false)
-      return toast({
-        title: 'Erro de Autenticação',
-        description: 'Identificador de usuário inválido para registrar canal.',
-        variant: 'destructive',
-      })
-    }
-
     try {
+      const {
+        data: { user: authUser },
+        error: authErr,
+      } = await supabase.auth.getUser()
+
+      if (authErr || !authUser) {
+        throw new Error('Você precisa estar autenticado para registrar um canal.')
+      }
+
+      const uid = authUser.id
+
       const { data: channel, error: cErr } = await supabase
         .from('channels')
         .insert({
-          user_id: user.id,
+          user_id: uid,
           platform,
           channel_name: name,
           channel_link: url,
@@ -78,7 +75,7 @@ export default function ChannelNew() {
       if (cErr) throw cErr
 
       const auditData: AuditInsert = {
-        user_id: user.id,
+        user_id: uid,
         channel_id: channel.id,
         status: 'pending',
         type: 'free_audit',
@@ -94,9 +91,16 @@ export default function ChannelNew() {
       navigate('/dashboard')
     } catch (error: any) {
       setIsProcessing(false)
+
+      let description = error.message || 'Ocorreu um erro desconhecido.'
+      if (error.code === '42501') {
+        description =
+          'Acesso negado: Você não tem permissão para inserir este canal (Violação de RLS).'
+      }
+
       toast({
         title: 'Erro ao cadastrar',
-        description: error.message || 'Ocorreu um erro.',
+        description,
         variant: 'destructive',
       })
     }
