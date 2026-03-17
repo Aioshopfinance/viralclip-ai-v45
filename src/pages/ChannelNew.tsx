@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Bot, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,7 @@ export default function ChannelNew() {
   const [searchParams] = useSearchParams()
   const [url, setUrl] = useState(searchParams.get('url') || '')
   const [platform, setPlatform] = useState('youtube')
+  const [customPlatform, setCustomPlatform] = useState('')
   const [name, setName] = useState('')
   const [niche, setNiche] = useState('devocional')
   const [customNiche, setCustomNiche] = useState('')
@@ -30,12 +31,63 @@ export default function ChannelNew() {
   const navigate = useNavigate()
   const { toast } = useToast()
 
+  const detectPlatform = (inputUrl: string) => {
+    const lowerUrl = inputUrl.toLowerCase()
+    if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) return 'youtube'
+    if (lowerUrl.includes('instagram.com')) return 'instagram'
+    if (lowerUrl.includes('tiktok.com')) return 'tiktok'
+    if (
+      lowerUrl.includes('facebook.com') ||
+      lowerUrl.includes('fb.watch') ||
+      lowerUrl.includes('fb.com')
+    )
+      return 'facebook'
+    if (lowerUrl.includes('kwai.com') || lowerUrl.includes('kw.ai')) return 'kwai'
+    if (lowerUrl.includes('linkedin.com')) return 'linkedin'
+    if (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com')) return 'twitter'
+    if (lowerUrl.includes('pinterest.com') || lowerUrl.includes('pin.it')) return 'pinterest'
+    if (lowerUrl.includes('twitch.tv')) return 'twitch'
+    if (lowerUrl.includes('spotify.com')) return 'spotify'
+    if (lowerUrl.includes('apple.com/podcast') || lowerUrl.includes('podcasts.apple.com'))
+      return 'apple_podcasts'
+    if (lowerUrl.includes('t.me') || lowerUrl.includes('telegram.me')) return 'telegram'
+    if (lowerUrl.includes('whatsapp.com') || lowerUrl.includes('wa.me')) return 'whatsapp'
+    if (lowerUrl.includes('discord.com') || lowerUrl.includes('discord.gg')) return 'discord'
+    return null
+  }
+
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newUrl = e.target.value
+    setUrl(newUrl)
+    const detected = detectPlatform(newUrl)
+    if (detected) {
+      setPlatform(detected)
+      if (detected !== 'outros') {
+        setCustomPlatform('')
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (url) {
+      const detected = detectPlatform(url)
+      if (detected) setPlatform(detected)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleNext = () => {
     if (step < 2) {
       if (!name || !url) {
         return toast({
           title: 'Atenção',
-          description: 'Preencha todos os campos.',
+          description: 'Preencha todos os campos obrigatórios.',
+          variant: 'destructive',
+        })
+      }
+      if (platform === 'outros' && !customPlatform.trim()) {
+        return toast({
+          title: 'Atenção',
+          description: 'Por favor, descreva a plataforma.',
           variant: 'destructive',
         })
       }
@@ -57,22 +109,25 @@ export default function ChannelNew() {
 
     try {
       const {
-        data: { user: authUser },
+        data: { session },
         error: authErr,
-      } = await supabase.auth.getUser()
+      } = await supabase.auth.getSession()
 
-      if (authErr || !authUser) {
-        throw new Error('Você precisa estar autenticado para registrar um canal.')
+      if (authErr || !session?.user) {
+        throw new Error(
+          'Você precisa estar autenticado para registrar um canal. Por favor, faça login novamente.',
+        )
       }
 
-      const uid = authUser.id
+      const uid = session.user.id
+      const finalPlatform = platform === 'outros' ? customPlatform.trim() : platform
       const finalNiche = niche === 'outros' ? customNiche.trim() : niche
 
       const { data: channel, error: cErr } = await supabase
         .from('channels')
         .insert({
           user_id: uid,
-          platform,
+          platform: finalPlatform,
           channel_name: name,
           channel_link: url,
           niche: finalNiche,
@@ -105,6 +160,9 @@ export default function ChannelNew() {
       if (error.code === '42501') {
         description =
           'Acesso negado: Você não tem permissão para inserir este canal (Violação de RLS).'
+      } else if (error.code === '23503') {
+        description =
+          'Sua conta não foi completamente sincronizada com o banco de dados. Faça logout e login novamente.'
       }
 
       toast({
@@ -141,7 +199,7 @@ export default function ChannelNew() {
           <CardTitle>{step === 1 ? 'Qual é o seu canal?' : 'Detalhes adicionais'}</CardTitle>
           <CardDescription>
             {step === 1
-              ? 'Identifique sua plataforma e URL.'
+              ? 'Identifique sua plataforma e URL. O tipo de plataforma pode ser detectado automaticamente.'
               : 'Isso ajuda a IA a calibrar a estratégia.'}
           </CardDescription>
         </CardHeader>
@@ -149,17 +207,12 @@ export default function ChannelNew() {
           {step === 1 ? (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Plataforma</Label>
-                <Select value={platform} onValueChange={setPlatform}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="youtube">YouTube</SelectItem>
-                    <SelectItem value="instagram">Instagram</SelectItem>
-                    <SelectItem value="tiktok">TikTok</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>URL do Canal</Label>
+                <Input
+                  placeholder="https://youtube.com/@seucanal"
+                  value={url}
+                  onChange={handleUrlChange}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Nome do Canal</Label>
@@ -170,13 +223,47 @@ export default function ChannelNew() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>URL do Canal</Label>
-                <Input
-                  placeholder="https://youtube.com/@seucanal"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                />
+                <Label>Plataforma</Label>
+                <Select
+                  value={platform}
+                  onValueChange={(val) => {
+                    setPlatform(val)
+                    if (val !== 'outros') setCustomPlatform('')
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    <SelectItem value="youtube">YouTube</SelectItem>
+                    <SelectItem value="instagram">Instagram</SelectItem>
+                    <SelectItem value="tiktok">TikTok</SelectItem>
+                    <SelectItem value="facebook">Facebook</SelectItem>
+                    <SelectItem value="kwai">Kwai</SelectItem>
+                    <SelectItem value="linkedin">LinkedIn</SelectItem>
+                    <SelectItem value="twitter">X / Twitter</SelectItem>
+                    <SelectItem value="pinterest">Pinterest</SelectItem>
+                    <SelectItem value="twitch">Twitch</SelectItem>
+                    <SelectItem value="spotify">Spotify Podcast</SelectItem>
+                    <SelectItem value="apple_podcasts">Apple Podcasts</SelectItem>
+                    <SelectItem value="site_blog">Site / Blog</SelectItem>
+                    <SelectItem value="telegram">Telegram</SelectItem>
+                    <SelectItem value="whatsapp">WhatsApp Channel</SelectItem>
+                    <SelectItem value="discord">Discord</SelectItem>
+                    <SelectItem value="outros">Outros</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+              {platform === 'outros' && (
+                <div className="space-y-2 animate-fade-in-up">
+                  <Label>Descreva a plataforma</Label>
+                  <Input
+                    placeholder="Ex: Rumble"
+                    value={customPlatform}
+                    onChange={(e) => setCustomPlatform(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
