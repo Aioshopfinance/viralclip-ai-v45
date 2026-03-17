@@ -2,16 +2,19 @@
 ALTER TABLE public.channels ADD COLUMN IF NOT EXISTS normalized_link TEXT;
 
 -- Deduplicate existing channels by user_id and roughly normalized url, keeping the oldest one
-DELETE FROM public.channels a USING (
-    SELECT MIN(id) as min_id, user_id, btrim(regexp_replace(lower(channel_link), '^(https?://)?(www\.)?', ''), '/') as norm
-    FROM public.channels 
+DELETE FROM public.channels
+WHERE id IN (
+  SELECT id
+  FROM (
+    SELECT id, ROW_NUMBER() OVER (
+      PARTITION BY user_id, btrim(regexp_replace(lower(channel_link), '^(https?://)?(www\.)?', ''), '/')
+      ORDER BY created_at ASC
+    ) as rnum
+    FROM public.channels
     WHERE channel_link IS NOT NULL
-    GROUP BY user_id, btrim(regexp_replace(lower(channel_link), '^(https?://)?(www\.)?', ''), '/')
-    HAVING COUNT(*) > 1
-) b
-WHERE a.user_id = b.user_id 
-AND btrim(regexp_replace(lower(a.channel_link), '^(https?://)?(www\.)?', ''), '/') = b.norm
-AND a.id <> b.min_id;
+  ) t
+  WHERE t.rnum > 1
+);
 
 -- Update existing records to have a normalized_link
 UPDATE public.channels 
