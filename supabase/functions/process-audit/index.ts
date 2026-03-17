@@ -5,14 +5,16 @@ async function fetchYouTubeData(url: string, apiKey: string) {
   let ytChannelId = null
   let urlType = 'unknown'
 
-  if (url.includes('/channel/')) {
-    const match = url.match(/\/channel\/(UC[\w-]+)/)
+  const cleanUrl = url.trim()
+
+  if (cleanUrl.includes('/channel/')) {
+    const match = cleanUrl.match(/\/channel\/(UC[\w-]+)/)
     if (match) {
       ytChannelId = match[1]
       urlType = 'channel_id'
     }
-  } else if (url.includes('@')) {
-    const match = url.match(/@([\w.-]+)/)
+  } else if (cleanUrl.includes('@')) {
+    const match = cleanUrl.match(/@([\w.-]+)/)
     if (match) {
       const handle = match[1]
       urlType = 'handle'
@@ -20,12 +22,13 @@ async function fetchYouTubeData(url: string, apiKey: string) {
         `https://youtube.googleapis.com/youtube/v3/channels?part=id&forHandle=@${handle}&key=${apiKey}`,
       )
       const data = await res.json()
+      if (data.error) throw new Error(data.error.message)
       if (data.items && data.items.length > 0) {
         ytChannelId = data.items[0].id
       }
     }
-  } else if (url.includes('/user/')) {
-    const match = url.match(/\/user\/([\w-]+)/)
+  } else if (cleanUrl.includes('/user/')) {
+    const match = cleanUrl.match(/\/user\/([\w-]+)/)
     if (match) {
       const username = match[1]
       urlType = 'username'
@@ -33,12 +36,13 @@ async function fetchYouTubeData(url: string, apiKey: string) {
         `https://youtube.googleapis.com/youtube/v3/channels?part=id&forUsername=${username}&key=${apiKey}`,
       )
       const data = await res.json()
+      if (data.error) throw new Error(data.error.message)
       if (data.items && data.items.length > 0) {
         ytChannelId = data.items[0].id
       }
     }
-  } else if (url.includes('/c/')) {
-    const match = url.match(/\/c\/([\w.-]+)/)
+  } else if (cleanUrl.includes('/c/')) {
+    const match = cleanUrl.match(/\/c\/([\w.-]+)/)
     if (match) {
       const cName = match[1]
       urlType = 'c_name'
@@ -46,12 +50,13 @@ async function fetchYouTubeData(url: string, apiKey: string) {
         `https://youtube.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${cName}&key=${apiKey}`,
       )
       const data = await res.json()
+      if (data.error) throw new Error(data.error.message)
       if (data.items && data.items.length > 0) {
         ytChannelId = data.items[0].snippet.channelId
       }
     }
   } else {
-    const match = url.match(/youtube\.com\/([\w.-]+)/)
+    const match = cleanUrl.match(/youtube\.com\/([\w.-]+)/)
     if (match && !['watch', 'playlist', 'feed', 'results'].includes(match[1])) {
       const handle = match[1]
       urlType = 'custom_path'
@@ -59,6 +64,7 @@ async function fetchYouTubeData(url: string, apiKey: string) {
         `https://youtube.googleapis.com/youtube/v3/channels?part=id&forHandle=@${handle}&key=${apiKey}`,
       )
       const data = await res.json()
+      if (data.error) throw new Error(data.error.message)
       if (data.items && data.items.length > 0) {
         ytChannelId = data.items[0].id
       }
@@ -73,6 +79,7 @@ async function fetchYouTubeData(url: string, apiKey: string) {
     `https://youtube.googleapis.com/youtube/v3/channels?part=statistics,snippet,contentDetails&id=${ytChannelId}&key=${apiKey}`,
   )
   const channelData = await channelRes.json()
+  if (channelData.error) throw new Error(channelData.error.message)
 
   if (!channelData.items || channelData.items.length === 0) {
     throw new Error(`Canal não encontrado na API para o ID: ${ytChannelId}`)
@@ -82,15 +89,19 @@ async function fetchYouTubeData(url: string, apiKey: string) {
     `https://youtube.googleapis.com/youtube/v3/search?part=id,snippet&channelId=${ytChannelId}&order=date&type=video&maxResults=10&key=${apiKey}`,
   )
   const searchData = await searchRes.json()
+  if (searchData.error) throw new Error(searchData.error.message)
 
   const videoIds = (searchData.items || []).map((item: any) => item.id?.videoId).filter(Boolean)
   let videosData = { items: [] }
 
   if (videoIds.length > 0) {
     const videosRes = await fetch(
-      `https://youtube.googleapis.com/youtube/v3/videos?part=statistics,snippet,contentDetails&id=${videoIds.join(',')}&key=${apiKey}`,
+      `https://youtube.googleapis.com/youtube/v3/videos?part=statistics,snippet,contentDetails&id=${videoIds.join(
+        ',',
+      )}&key=${apiKey}`,
     )
     videosData = await videosRes.json()
+    if ((videosData as any).error) throw new Error((videosData as any).error.message)
   }
 
   return { ytChannelId, urlType, channelData, searchData, videosData }
@@ -106,7 +117,7 @@ function calculateScore(channelData: any, videosData: any) {
   let lastUploadDate: Date | null = null
 
   videos.forEach((v: any, idx: number) => {
-    totalViews += parseInt(v.statistics.viewCount || '0', 10)
+    totalViews += parseInt(v.statistics?.viewCount || '0', 10)
     const pubDate = new Date(v.snippet.publishedAt)
     if (idx === 0) {
       lastUploadDate = pubDate
@@ -181,6 +192,9 @@ Deno.serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     supabase = createClient(supabaseUrl, supabaseKey)
+
+    // Set status to processing
+    await supabase.from('audits').update({ status: 'processing' }).eq('id', auditId)
 
     const { data: channel, error: channelError } = await supabase
       .from('channels')

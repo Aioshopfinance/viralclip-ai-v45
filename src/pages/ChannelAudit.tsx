@@ -57,12 +57,30 @@ export default function ChannelAudit() {
     if (audit && audit.status === 'completed' && audit.analysis_data) {
       const ad = audit.analysis_data
       if (ad.received_url) {
-        console.log(`[Audit Debug] URL recebida: ${ad.received_url}`)
+        console.group(`[Audit Debug] Resultado da Auditoria`)
+        console.log(`URL recebida: ${ad.received_url}`)
         console.log(
-          `[Audit Debug] channelId resolvido: ${ad.youtube_channel_id} (Formato: ${ad.resolved_url_type})`,
+          `channelId resolvido: ${ad.youtube_channel_id} (Formato: ${ad.resolved_url_type})`,
         )
-        console.log(`[Audit Debug] métricas calculadas:`, ad.metrics, ad.score_breakdown)
-        console.log(`[Audit Debug] dados brutos:`, ad.raw_data)
+
+        const stats = ad.raw_data?.channel?.items?.[0]?.statistics
+        if (stats) {
+          console.log(`Raw API subscriberCount: ${stats.subscriberCount}`)
+          console.log(`Raw API videoCount: ${stats.videoCount}`)
+        }
+
+        console.log(
+          `Main data from retrieved videos list:`,
+          ad.raw_data?.videos?.items?.map((v: any) => ({
+            id: v.id,
+            views: v.statistics?.viewCount,
+            publishedAt: v.snippet?.publishedAt,
+          })),
+        )
+
+        console.log(`Intermediate metrics:`, ad.metrics)
+        console.log(`Score breakdown:`, ad.score_breakdown)
+        console.groupEnd()
       }
     }
   }, [audit?.status])
@@ -85,7 +103,9 @@ export default function ChannelAudit() {
   const breakdown = analysis.score_breakdown || null
   const score = breakdown?.total || audit?.growth_score || analysis.score || 0
   const metrics = analysis.metrics || null
-  const avatarUrl = `https://img.usecurling.com/i?q=${encodeURIComponent(channel.platform)}&color=gradient`
+  const avatarUrl = `https://img.usecurling.com/i?q=${encodeURIComponent(
+    channel.platform,
+  )}&color=gradient`
 
   return (
     <div className="space-y-8 animate-fade-in">

@@ -12,7 +12,7 @@ import { AuditMetrics } from '@/components/audit/AuditMetrics'
 import { LockedReport } from '@/components/audit/LockedReport'
 
 function AuditStatusBadge({ status }: { status: string }) {
-  if (status === 'pending')
+  if (status === 'pending' || status === 'processing')
     return (
       <Badge variant="secondary" className="animate-pulse">
         <Loader2 className="h-3 w-3 mr-1 animate-spin" /> Analisando
@@ -89,12 +89,30 @@ export default function AuditDetail() {
     if (audit?.status === 'completed' && audit.analysis_data) {
       const ad = audit.analysis_data
       if (ad.received_url) {
-        console.log(`[Audit Debug] URL recebida: ${ad.received_url}`)
+        console.group(`[Audit Debug] Resultado da Auditoria`)
+        console.log(`URL recebida: ${ad.received_url}`)
         console.log(
-          `[Audit Debug] channelId resolvido: ${ad.youtube_channel_id} (Formato: ${ad.resolved_url_type})`,
+          `channelId resolvido: ${ad.youtube_channel_id} (Formato: ${ad.resolved_url_type})`,
         )
-        console.log(`[Audit Debug] métricas calculadas:`, ad.metrics, ad.score_breakdown)
-        console.log(`[Audit Debug] dados brutos:`, ad.raw_data)
+
+        const stats = ad.raw_data?.channel?.items?.[0]?.statistics
+        if (stats) {
+          console.log(`Raw API subscriberCount: ${stats.subscriberCount}`)
+          console.log(`Raw API videoCount: ${stats.videoCount}`)
+        }
+
+        console.log(
+          `Main data from retrieved videos list:`,
+          ad.raw_data?.videos?.items?.map((v: any) => ({
+            id: v.id,
+            views: v.statistics?.viewCount,
+            publishedAt: v.snippet?.publishedAt,
+          })),
+        )
+
+        console.log(`Intermediate metrics:`, ad.metrics)
+        console.log(`Score breakdown:`, ad.score_breakdown)
+        console.groupEnd()
       }
     }
   }, [audit?.status])
@@ -164,19 +182,25 @@ export default function AuditDetail() {
         </div>
       </div>
 
-      {audit.status === 'pending' && (
+      {(audit.status === 'pending' || audit.status === 'processing') && (
         <Card className="border-dashed bg-muted/30 text-center py-16">
-          <Sparkles className="h-12 w-12 text-secondary mx-auto animate-bounce" />
+          <Loader2 className="h-12 w-12 text-secondary mx-auto animate-spin" />
           <h2 className="text-2xl mt-4 font-semibold">Analisando dados reais do canal...</h2>
+          <p className="text-muted-foreground mt-2">Estimativa: 20–40 segundos</p>
         </Card>
       )}
 
       {(audit.status === 'error' || audit.status === 'failed') && (
         <Card className="border-destructive/50 bg-destructive/5 text-center py-12">
           <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-          <p className="mt-4">
-            {audit.error_message || 'Não foi possível obter dados reais do canal.'}
+          <p className="mt-4 text-lg font-medium text-destructive">
+            Dados reais do YouTube ainda não disponíveis.
           </p>
+          {audit.error_message && (
+            <p className="mt-2 text-sm text-muted-foreground max-w-lg mx-auto">
+              Detalhes técnicos: {audit.error_message}
+            </p>
+          )}
         </Card>
       )}
 
