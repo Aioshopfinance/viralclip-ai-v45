@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Plus, TrendingUp, Sparkles, Youtube } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { ChannelCard, type ChannelWithAudits } from '@/components/dashboard/ChannelCard'
+import { normalizeUrl } from '@/lib/utils'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -17,7 +18,6 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
 
-  // Fetch Channels Logic
   const fetchChannels = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -71,7 +71,6 @@ export default function Dashboard() {
 
     initDashboard()
 
-    // Monitor for stuck pending audits
     const timeoutInterval = setInterval(() => {
       setChannels((prev) => {
         prev.forEach((ch) => {
@@ -81,7 +80,6 @@ export default function Dashboard() {
           if (latest?.status === 'pending') {
             const age = Date.now() - new Date(latest.created_at).getTime()
             if (age > 45000) {
-              // 45 seconds timeout
               console.log(`[Audit Lifecycle] Failed: ${latest.id} - Error: Timeout exceeded`)
               supabase
                 .from('audits')
@@ -120,33 +118,41 @@ export default function Dashboard() {
       } = await supabase.auth.getUser()
       if (!user) throw new Error('Autenticação necessária')
 
+      const normalizedLink = normalizeUrl(auditUrl)
+      console.log(
+        `[Audit Lifecycle] Normalizing URL for deduplication: ${auditUrl} -> ${normalizedLink}`,
+      )
+
       let channelId = ''
       const { data: existingChannel } = await supabase
         .from('channels')
         .select('*')
         .eq('user_id', user.id)
-        .eq('channel_link', auditUrl)
+        .eq('normalized_link', normalizedLink)
         .maybeSingle()
 
       if (existingChannel) {
         channelId = existingChannel.id
+        console.log(`[Audit Lifecycle] Reusing existing channel_id: ${channelId}`)
       } else {
         const { data: newChannel, error: chErr } = await supabase
           .from('channels')
           .insert({
             user_id: user.id,
             channel_link: auditUrl,
+            normalized_link: normalizedLink,
             platform: auditUrl.includes('instagram')
               ? 'instagram'
               : auditUrl.includes('tiktok')
                 ? 'tiktok'
                 : 'youtube',
             channel_name: 'Novo Canal Detectado',
-          })
+          } as any)
           .select()
           .single()
         if (chErr) throw chErr
         channelId = newChannel.id
+        console.log(`[Audit Lifecycle] Created new channel_id: ${channelId}`)
       }
 
       const { data: newAudit, error: auditErr } = await supabase
@@ -158,7 +164,7 @@ export default function Dashboard() {
       if (auditErr) throw auditErr
 
       console.log(
-        `[Audit Lifecycle] Created: ${newAudit.id} | Channel: ${channelId} | User: ${user.id} | Status: pending`,
+        `[Audit Lifecycle] Created Audit: ${newAudit.id} | Channel: ${channelId} | User: ${user.id} | Status: pending`,
       )
 
       setAuditUrl('')

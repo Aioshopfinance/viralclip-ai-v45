@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
+import { normalizeUrl } from '@/lib/utils'
 import type { Database } from '@/lib/supabase/types'
 
 type AuditInsert = Database['public']['Tables']['audits']['Insert'] & { type: string }
@@ -122,25 +123,43 @@ export default function ChannelNew() {
       const uid = session.user.id
       const finalPlatform = platform === 'outros' ? customPlatform.trim() : platform
       const finalNiche = niche === 'outros' ? customNiche.trim() : niche
+      const normalizedLink = normalizeUrl(url)
 
-      const { data: channel, error: cErr } = await supabase
+      let channelId = ''
+
+      const { data: existingChannel } = await supabase
         .from('channels')
-        .insert({
+        .select('id')
+        .eq('user_id', uid)
+        .eq('normalized_link', normalizedLink)
+        .maybeSingle()
+
+      if (existingChannel) {
+        channelId = existingChannel.id
+      } else {
+        const channelData: any = {
           user_id: uid,
           platform: finalPlatform,
           channel_name: name,
           channel_link: url,
+          normalized_link: normalizedLink,
           niche: finalNiche,
           status: 'active',
-        })
-        .select()
-        .single()
+        }
 
-      if (cErr) throw cErr
+        const { data: channel, error: cErr } = await supabase
+          .from('channels')
+          .insert(channelData)
+          .select()
+          .single()
+
+        if (cErr) throw cErr
+        channelId = channel.id
+      }
 
       const auditData: AuditInsert = {
         user_id: uid,
-        channel_id: channel.id,
+        channel_id: channelId,
         status: 'pending',
         type: 'free_audit',
       }

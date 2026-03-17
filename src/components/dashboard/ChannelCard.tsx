@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Activity, AlertCircle, Instagram, Video, Youtube, RefreshCw } from 'lucide-react'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
@@ -20,6 +21,12 @@ export function ChannelCard({ channel, onRetry }: ChannelCardProps) {
   const latestAudit = [...(channel.audits || [])].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   )[0]
+
+  useEffect(() => {
+    console.log(
+      `[Audit Lifecycle] Render - channel_id: ${channel.id} | audit_id: ${latestAudit?.id || 'none'} | status: ${latestAudit?.status || 'none'} | normalized_url: ${(channel as any).normalized_link || 'none'}`,
+    )
+  }, [channel.id, latestAudit?.id, latestAudit?.status, (channel as any).normalized_link])
 
   const score = latestAudit?.growth_score || 0
   const rawStatus = latestAudit?.status || 'pending'
