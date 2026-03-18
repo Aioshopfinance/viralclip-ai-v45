@@ -14,6 +14,7 @@ import ChannelAudit from './pages/ChannelAudit'
 import AuditDetail from './pages/AuditDetail'
 import AuditProcessing from './pages/AuditProcessing'
 import AuditResult from './pages/AuditResult'
+import GuestAudit from './pages/GuestAudit'
 import Upgrade from './pages/Upgrade'
 import AdminUsers from './pages/admin/Users'
 import Settings from './pages/Settings'
@@ -31,6 +32,9 @@ const App = () => (
           <Route element={<ProtectedRoute requireGuest />}>
             <Route path="/" element={<Index />} />
           </Route>
+
+          {/* Ephemeral / Guest Audit Flow */}
+          <Route path="/guest-audit" element={<GuestAudit />} />
 
           {/* Authenticated Routes */}
           <Route element={<ProtectedRoute requireAuth />}>

@@ -243,6 +243,54 @@ export type Database = {
         }
         Relationships: []
       }
+      videos: {
+        Row: {
+          created_at: string
+          external_url: string | null
+          id: string
+          project_id: string
+          source_type: string
+          status: string | null
+          storage_path: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          external_url?: string | null
+          id?: string
+          project_id: string
+          source_type: string
+          status?: string | null
+          storage_path?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          external_url?: string | null
+          id?: string
+          project_id?: string
+          source_type?: string
+          status?: string | null
+          storage_path?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'videos_project_id_fkey'
+            columns: ['project_id']
+            isOneToOne: false
+            referencedRelation: 'projects'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'videos_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -438,6 +486,15 @@ export const Constants = {
 //   avatar_url: text (nullable)
 //   role: text (nullable, default: 'client'::text)
 //   created_at: timestamp with time zone (not null, default: now())
+// Table: videos
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (not null)
+//   project_id: uuid (not null)
+//   source_type: text (not null)
+//   storage_path: text (nullable)
+//   external_url: text (nullable)
+//   status: text (nullable, default: 'received'::text)
+//   created_at: timestamp with time zone (not null, default: now())
 
 // --- CONSTRAINTS ---
 // Table: audits
@@ -463,6 +520,11 @@ export const Constants = {
 //   FOREIGN KEY users_id_fkey: FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 //   PRIMARY KEY users_pkey: PRIMARY KEY (id)
 //   CHECK users_role_check: CHECK ((role = ANY (ARRAY['visitor'::text, 'client'::text, 'affiliate'::text, 'collaborator'::text, 'administrator'::text, 'operator_ia'::text])))
+// Table: videos
+//   PRIMARY KEY videos_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY videos_project_id_fkey: FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+//   CHECK videos_source_type_check: CHECK ((source_type = ANY (ARRAY['url'::text, 'upload'::text])))
+//   FOREIGN KEY videos_user_id_fkey: FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 
 // --- ROW LEVEL SECURITY POLICIES ---
 // Table: audits
@@ -535,6 +597,11 @@ export const Constants = {
 //     WITH CHECK: (auth.uid() = id)
 //   Policy "Users can view own profile" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = id)
+// Table: videos
+//   Policy "Admins can select all videos" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: is_admin()
+//   Policy "Users can manage own videos" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
 
 // --- DATABASE FUNCTIONS ---
 // FUNCTION handle_new_user()

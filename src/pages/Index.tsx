@@ -13,7 +13,7 @@ import { normalizeUrl } from '@/lib/utils'
 export default function Index() {
   const navigate = useNavigate()
   const { toast } = useToast()
-  const { login, signup, isAuthLoading, user } = useAppStore()
+  const { login, signup, isAuthLoading, user, setEphemeralAudit } = useAppStore()
 
   const [url, setUrl] = useState('')
   const [email, setEmail] = useState('')
@@ -66,12 +66,24 @@ export default function Index() {
       return
     }
 
-    if (!user) {
+    const lowerUrl = url.toLowerCase()
+    const isYouTube = lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')
+    const isTikTok = lowerUrl.includes('tiktok.com')
+
+    if (!isYouTube && !isTikTok) {
       toast({
-        title: 'Autenticação Necessária',
-        description: 'Faça login ou cadastre-se para solicitar a auditoria grátis.',
+        title: 'Plataforma em Construção',
+        description: 'No momento, suportamos apenas YouTube e TikTok.',
+        variant: 'destructive',
       })
-      document.getElementById('auth-card')?.scrollIntoView({ behavior: 'smooth' })
+      return
+    }
+
+    const platform = isYouTube ? 'youtube' : 'tiktok'
+
+    if (!user) {
+      setEphemeralAudit({ url, platform, analysisData: null, channelName: '' })
+      navigate('/guest-audit')
       return
     }
 
@@ -81,7 +93,6 @@ export default function Index() {
       const normalizedLink = normalizeUrl(url)
       let channelId = ''
 
-      // Check if channel already exists
       const { data: existingChannel } = await supabase
         .from('channels')
         .select('id')
@@ -96,11 +107,7 @@ export default function Index() {
           .from('channels')
           .insert({
             user_id: user.id,
-            platform: url.includes('instagram')
-              ? 'instagram'
-              : url.includes('tiktok')
-                ? 'tiktok'
-                : 'youtube',
+            platform,
             channel_link: url,
             normalized_link: normalizedLink,
             channel_name: 'Analisando Canal...',
@@ -113,7 +120,6 @@ export default function Index() {
         channelId = newChannel.id
       }
 
-      // Always create a new audit for the new flow
       const { data: audit, error: aErr } = await supabase
         .from('audits')
         .insert({
@@ -127,7 +133,6 @@ export default function Index() {
 
       if (aErr) throw aErr
 
-      // Redirect to the new animated processing page
       navigate(`/audit/processing/${audit.id}`)
     } catch (err: any) {
       let description = err.message || 'Ocorreu um erro.'
@@ -160,10 +165,10 @@ export default function Index() {
         <div className="flex-1 space-y-8 animate-fade-in-up">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 text-accent font-medium text-sm">
             <Wand2 className="h-4 w-4" />
-            IA Especializada para Cristãos
+            IA Especializada para Canais
           </div>
           <h1 className="text-5xl lg:text-6xl font-heading font-bold text-foreground leading-tight text-balance">
-            Sua Agência de Crescimento Cristão Automatizada.
+            Sua Agência de Crescimento Automatizada.
           </h1>
           <p className="text-lg text-muted-foreground max-w-xl">
             Multiplique seu alcance. Nossa IA analisa, roteiriza e edita seus vídeos longos em
@@ -173,7 +178,7 @@ export default function Index() {
           <div className="bg-card p-2 rounded-2xl border border-border shadow-elevation flex items-center max-w-md">
             <Youtube className="text-muted-foreground ml-3 h-6 w-6 shrink-0" />
             <Input
-              placeholder="Cole a URL do seu canal..."
+              placeholder="Cole a URL do seu YouTube ou TikTok..."
               className="border-0 focus-visible:ring-0 shadow-none text-base"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
@@ -182,7 +187,7 @@ export default function Index() {
               {isLoading && activeTab === 'login' ? (
                 <Loader2 className="animate-spin h-4 w-4 mr-2" />
               ) : null}
-              Auditoria Grátis
+              Rodar Auditoria
             </Button>
           </div>
         </div>

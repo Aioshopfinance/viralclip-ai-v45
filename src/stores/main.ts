@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { supabase } from '@/lib/supabase/client'
 
-// Definindo explicitamente a matriz de papéis (Role Matrix) conforme a User Story
 export type UserRole =
   | 'visitor'
   | 'client'
@@ -9,6 +8,7 @@ export type UserRole =
   | 'affiliate'
   | 'collaborator'
   | 'operator_ia'
+  | 'subscriber'
 
 interface AppState {
   user: {
@@ -19,6 +19,8 @@ interface AppState {
     credits: number
   } | null
   isAuthLoading: boolean
+  ephemeralAudit: { url: string; platform: string; analysisData?: any; channelName?: string } | null
+  setEphemeralAudit: (data: AppState['ephemeralAudit']) => void
   login: (email: string, password: string) => Promise<{ error: Error | null }>
   signup: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>
   logout: () => void
@@ -36,6 +38,7 @@ const AppContext = createContext<AppState | undefined>(undefined)
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppState['user']>(null)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const [ephemeralAudit, setEphemeralAudit] = useState<AppState['ephemeralAudit']>(null)
 
   useEffect(() => {
     if (!supabase) {
@@ -75,24 +78,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .eq('user_id', userId)
         .single()
 
-      // Diagnostic Logging as per Acceptance Criteria
-      console.log('[Auth Debug] Auth User ID:', userId)
-      console.log('[Auth Debug] Authenticated Email:', authData.user?.email || profile?.email)
-      console.log('[Auth Debug] Full User Record from public.users:', profile)
-
       if (profile) {
-        const finalRole = profile.role || 'client'
-        console.log('[Auth Debug] Final Role assigned to state:', finalRole)
-
         setUser({
           id: profile.id,
           name: profile.full_name || 'Usuário',
           email: profile.email || authData.user?.email || '',
-          role: finalRole as UserRole,
+          role: (profile.role as UserRole) || 'client',
           credits: credits?.balance || 0,
         })
       } else {
-        console.log('[Auth Debug] Final Role assigned to state (fallback): client')
         setUser({
           id: userId,
           name: 'Usuário',
@@ -131,9 +125,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deductCredits = (amount: number) => {
     if (!user || user.credits < amount) return false
-
     setUser({ ...user, credits: user.credits - amount })
-
     if (supabase) {
       const isUUID =
         /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id)
@@ -142,49 +134,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
           .from('credits')
           .update({ balance: user.credits - amount })
           .eq('user_id', user.id)
-          .then(({ error }) => {
-            if (error) console.error('Failed to deduct credits in DB', error)
-          })
+          .then()
       }
     }
-
     return true
   }
 
   const startAnonymousSession = async () => {
     if (!supabase) return { error: new Error('Supabase client is not configured.') }
-
     setIsAuthLoading(true)
     try {
       let { data, error } = await supabase.auth.signInAnonymously()
-
       if (
         error &&
         (error.message.toLowerCase().includes('anonymous') ||
           error.status === 400 ||
           error.status === 403)
       ) {
-        const dummyEmail = `anon_${crypto.randomUUID().slice(0, 8)}@viralclip.ai`
-        const dummyPassword = crypto.randomUUID()
         const res = await supabase.auth.signUp({
-          email: dummyEmail,
-          password: dummyPassword,
+          email: `anon_${crypto.randomUUID().slice(0, 8)}@viralclip.ai`,
+          password: crypto.randomUUID(),
           options: { data: { full_name: 'Visitante' } },
         })
-
-        if (!res.error && res.data.user) {
-          await fetchUserProfile(res.data.user.id)
-        } else {
-          setIsAuthLoading(false)
-        }
+        if (!res.error && res.data.user) await fetchUserProfile(res.data.user.id)
+        else setIsAuthLoading(false)
         return { data: res.data, error: res.error }
       }
-
-      if (data?.user) {
-        await fetchUserProfile(data.user.id)
-      } else {
-        setIsAuthLoading(false)
-      }
+      if (data?.user) await fetchUserProfile(data.user.id)
+      else setIsAuthLoading(false)
       return { data, error }
     } catch (err: any) {
       setIsAuthLoading(false)
@@ -194,18 +171,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const convertAnonymousUser = async (email: string, password: string, fullName: string) => {
     if (!supabase || !user) return { error: new Error('Not connected') }
-
     const { error } = await supabase.auth.updateUser({
       email,
       password,
       data: { full_name: fullName },
     })
-
     if (!error) {
       await supabase.from('users').update({ email, full_name: fullName }).eq('id', user.id)
       await fetchUserProfile(user.id)
     }
-
     return { error }
   }
 
@@ -215,6 +189,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value: {
         user,
         isAuthLoading,
+        ephemeralAudit,
+        setEphemeralAudit,
         login,
         signup,
         logout,
@@ -229,8 +205,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 export default function useAppStore() {
   const context = useContext(AppContext)
-  if (!context) {
-    throw new Error('useAppStore must be used within an AppProvider')
-  }
+  if (!context) throw new Error('useAppStore must be used within an AppProvider')
   return context
 }

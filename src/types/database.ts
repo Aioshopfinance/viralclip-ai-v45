@@ -10,6 +10,7 @@ export interface User {
     | 'collaborator'
     | 'administrator'
     | 'operator_ia'
+    | 'subscriber'
     | string
   created_at: string
 }

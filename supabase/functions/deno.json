@@ -1,5 +1,6 @@
 {
   "_versions": {
-    "process-audit": 8
+    "process-audit": 9,
+    "anonymous-audit": 1
   }
 }
