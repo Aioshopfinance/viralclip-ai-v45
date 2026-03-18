@@ -91,7 +91,7 @@ export default function Settings() {
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Função</label>
                 <p className="font-medium capitalize">
-                  {user?.role === 'admin' ? 'Administrador' : 'Cliente'}
+                  {user?.role === 'administrator' ? 'Administrador' : 'Cliente'}
                 </p>
               </div>
             </CardContent>

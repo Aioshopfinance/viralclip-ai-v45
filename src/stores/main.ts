@@ -2,7 +2,13 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { supabase } from '@/lib/supabase/client'
 
 // Definindo explicitamente a matriz de papéis (Role Matrix) conforme a User Story
-export type UserRole = 'visitor' | 'client' | 'admin' | 'affiliate' | 'collaborator' | 'operator_ia'
+export type UserRole =
+  | 'visitor'
+  | 'client'
+  | 'administrator'
+  | 'affiliate'
+  | 'collaborator'
+  | 'operator_ia'
 
 interface AppState {
   user: {
@@ -61,6 +67,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      const { data: authData } = await supabase.auth.getUser()
       const { data: profile } = await supabase.from('users').select('*').eq('id', userId).single()
       const { data: credits } = await supabase
         .from('credits')
@@ -68,19 +75,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .eq('user_id', userId)
         .single()
 
+      // Diagnostic Logging as per Acceptance Criteria
+      console.log('[Auth Debug] Auth User ID:', userId)
+      console.log('[Auth Debug] Authenticated Email:', authData.user?.email || profile?.email)
+      console.log('[Auth Debug] Full User Record from public.users:', profile)
+
       if (profile) {
+        const finalRole = profile.role || 'client'
+        console.log('[Auth Debug] Final Role assigned to state:', finalRole)
+
         setUser({
           id: profile.id,
           name: profile.full_name || 'Usuário',
-          email: profile.email || '',
-          role: (profile.role?.toLowerCase() || 'client') as UserRole,
+          email: profile.email || authData.user?.email || '',
+          role: finalRole as UserRole,
           credits: credits?.balance || 0,
         })
       } else {
+        console.log('[Auth Debug] Final Role assigned to state (fallback): client')
         setUser({
           id: userId,
           name: 'Usuário',
-          email: '',
+          email: authData.user?.email || '',
           role: 'client',
           credits: credits?.balance || 0,
         })

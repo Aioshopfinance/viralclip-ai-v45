@@ -63,7 +63,7 @@ export function AppSidebar() {
             </SidebarMenuItem>
           ))}
 
-          {user.role === 'admin' && (
+          {user.role === 'administrator' && (
             <>
               <SidebarSeparator className="my-4" />
               <div className="px-2 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -96,7 +96,7 @@ export function AppSidebar() {
           <div className="flex flex-col items-start">
             <span className="text-sm font-semibold">{user.name}</span>
             <span className="text-[10px] text-secondary font-medium px-1.5 py-0.5 bg-secondary/10 rounded-md mt-1 uppercase tracking-wider">
-              {user.role === 'admin' ? 'Administrador' : 'Cliente'}
+              {user.role === 'administrator' ? 'Administrador' : 'Cliente'}
             </span>
           </div>
           <Button variant="ghost" size="icon" onClick={logout} title="Sair">

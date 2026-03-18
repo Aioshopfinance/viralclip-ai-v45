@@ -32,8 +32,8 @@ export function ProtectedRoute({ requireAuth, requireAdmin, requireGuest }: Prot
     return <Navigate to="/" replace />
   }
 
-  // Se a rota exige papel de admin e o usuário não é, redireciona para o dashboard do cliente
-  if (requireAdmin && user?.role !== 'admin') {
+  // Se a rota exige papel de admin e o usuário não é "administrator", redireciona para o dashboard
+  if (requireAdmin && user?.role !== 'administrator') {
     return <Navigate to="/dashboard" replace />
   }
 

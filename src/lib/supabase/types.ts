@@ -248,7 +248,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
@@ -466,6 +466,8 @@ export const Constants = {
 
 // --- ROW LEVEL SECURITY POLICIES ---
 // Table: audits
+//   Policy "Admins can select all audits" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: is_admin()
 //   Policy "Users can delete own audits" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
 //   Policy "Users can insert own audits" (INSERT, PERMISSIVE) roles={authenticated}
@@ -476,6 +478,8 @@ export const Constants = {
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
 // Table: channels
+//   Policy "Admins can select all channels" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: is_admin()
 //   Policy "Users can delete own channels" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
 //   Policy "Users can insert own channels" (INSERT, PERMISSIVE) roles={authenticated}
@@ -486,6 +490,8 @@ export const Constants = {
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
 // Table: credits
+//   Policy "Admins can select all credits" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: is_admin()
 //   Policy "Users can delete own credits" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
 //   Policy "Users can insert own credits" (INSERT, PERMISSIVE) roles={authenticated}
@@ -496,6 +502,8 @@ export const Constants = {
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
 // Table: projects
+//   Policy "Admins can select all projects" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: is_admin()
 //   Policy "Users can delete own projects" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
 //   Policy "Users can insert own projects" (INSERT, PERMISSIVE) roles={authenticated}
@@ -506,6 +514,8 @@ export const Constants = {
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
 // Table: transactions
+//   Policy "Admins can select all transactions" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: is_admin()
 //   Policy "Users can delete own transactions" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
 //   Policy "Users can insert own transactions" (INSERT, PERMISSIVE) roles={authenticated}
@@ -516,6 +526,8 @@ export const Constants = {
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
 // Table: users
+//   Policy "Admins can select all users" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: is_admin()
 //   Policy "Users can select own profile" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = id)
 //   Policy "Users can update own profile" (UPDATE, PERMISSIVE) roles={authenticated}
@@ -549,6 +561,20 @@ export const Constants = {
 //
 //     RETURN NEW;
 //   END;
+//   $function$
+//
+// FUNCTION is_admin()
+//   CREATE OR REPLACE FUNCTION public.is_admin()
+//    RETURNS boolean
+//    LANGUAGE sql
+//    SECURITY DEFINER
+//    SET search_path TO 'public'
+//   AS $function$
+//     SELECT EXISTS (
+//       SELECT 1
+//       FROM public.users
+//       WHERE id = auth.uid() AND role = 'admin'
+//     );
 //   $function$
 //
 // FUNCTION trigger_audit_processing()

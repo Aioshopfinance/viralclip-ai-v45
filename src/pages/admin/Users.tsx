@@ -29,8 +29,6 @@ export default function AdminUsers() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        // Agora, por causa da nova política de RLS "Admins can select all users",
-        // esta query retornará todos os usuários da base.
         const { data, error } = await supabase
           .from('users')
           .select('*, credits(balance)')
@@ -105,10 +103,10 @@ export default function AdminUsers() {
                     <TableCell className="text-muted-foreground">{u.email}</TableCell>
                     <TableCell>
                       <Badge
-                        variant={u.role === 'admin' ? 'default' : 'secondary'}
+                        variant={u.role === 'administrator' ? 'default' : 'secondary'}
                         className="capitalize"
                       >
-                        {u.role}
+                        {u.role === 'administrator' ? 'Admin' : u.role}
                       </Badge>
                     </TableCell>
                     <TableCell>
