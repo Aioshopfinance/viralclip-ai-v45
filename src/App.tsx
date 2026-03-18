@@ -11,6 +11,9 @@ import ProjectDetail from './pages/ProjectDetail'
 import ChannelNew from './pages/ChannelNew'
 import ChannelAudit from './pages/ChannelAudit'
 import AuditDetail from './pages/AuditDetail'
+import AuditProcessing from './pages/AuditProcessing'
+import AuditResult from './pages/AuditResult'
+import Upgrade from './pages/Upgrade'
 import AdminUsers from './pages/admin/Users'
 import Settings from './pages/Settings'
 import NotFound from './pages/NotFound'
@@ -32,6 +35,12 @@ const App = () => (
             <Route path="/channels/new" element={<ChannelNew />} />
             <Route path="/channels/:id/audit" element={<ChannelAudit />} />
             <Route path="/audits/:id" element={<AuditDetail />} />
+
+            {/* New Flow Routes */}
+            <Route path="/audit/processing/:auditId" element={<AuditProcessing />} />
+            <Route path="/audit/result/:auditId" element={<AuditResult />} />
+            <Route path="/upgrade" element={<Upgrade />} />
+
             <Route path="/channels" element={<Navigate to="/dashboard" replace />} />
             <Route path="/settings" element={<Settings />} />
 

@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast'
 import useAppStore from '@/stores/main'
 import { supabase } from '@/lib/supabase/client'
+import { normalizeUrl } from '@/lib/utils'
 
 export default function Index() {
   const navigate = useNavigate()
@@ -69,7 +70,6 @@ export default function Index() {
       toast({
         title: 'Autenticação Necessária',
         description: 'Faça login ou cadastre-se para solicitar a auditoria grátis.',
-        variant: 'destructive',
       })
       document.getElementById('auth-card')?.scrollIntoView({ behavior: 'smooth' })
       return
@@ -78,29 +78,47 @@ export default function Index() {
     setIsLoading(true)
 
     try {
-      const { data: channel, error: cErr } = await supabase
+      const normalizedLink = normalizeUrl(url)
+      let channelId = ''
+
+      // Check if channel already exists
+      const { data: existingChannel } = await supabase
         .from('channels')
-        .insert({
-          user_id: user.id,
-          platform: url.includes('instagram')
-            ? 'instagram'
-            : url.includes('tiktok')
-              ? 'tiktok'
-              : 'youtube',
-          channel_link: url,
-          channel_name: 'Analisando Canal...',
-          status: 'active',
-        })
-        .select()
-        .single()
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('normalized_link', normalizedLink)
+        .maybeSingle()
 
-      if (cErr) throw cErr
+      if (existingChannel) {
+        channelId = existingChannel.id
+      } else {
+        const { data: newChannel, error: cErr } = await supabase
+          .from('channels')
+          .insert({
+            user_id: user.id,
+            platform: url.includes('instagram')
+              ? 'instagram'
+              : url.includes('tiktok')
+                ? 'tiktok'
+                : 'youtube',
+            channel_link: url,
+            normalized_link: normalizedLink,
+            channel_name: 'Analisando Canal...',
+            status: 'active',
+          })
+          .select()
+          .single()
 
+        if (cErr) throw cErr
+        channelId = newChannel.id
+      }
+
+      // Always create a new audit for the new flow
       const { data: audit, error: aErr } = await supabase
         .from('audits')
         .insert({
           user_id: user.id,
-          channel_id: channel.id,
+          channel_id: channelId,
           status: 'pending',
           type: 'free_audit',
         })
@@ -109,7 +127,8 @@ export default function Index() {
 
       if (aErr) throw aErr
 
-      navigate(`/audits/${audit.id}`)
+      // Redirect to the new animated processing page
+      navigate(`/audit/processing/${audit.id}`)
     } catch (err: any) {
       let description = err.message || 'Ocorreu um erro.'
       if (err.code === '42501' || err.message?.includes('RLS')) {
