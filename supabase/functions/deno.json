@@ -1,6 +1,7 @@
 {
   "_versions": {
-    "process-audit": 9,
-    "anonymous-audit": 1
+    "process-audit": 10,
+    "anonymous-audit": 1,
+    "functions": 1
   }
 }
