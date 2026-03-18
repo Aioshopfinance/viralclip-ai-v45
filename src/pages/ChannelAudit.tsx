@@ -11,7 +11,6 @@ import { AuditMetrics } from '@/components/audit/AuditMetrics'
 
 export default function ChannelAudit() {
   const { id } = useParams()
-  const navigate = useNavigate()
   const { user } = useAppStore()
 
   const [channel, setChannel] = useState<any>(null)
@@ -52,39 +51,6 @@ export default function ChannelAudit() {
     }
     fetchAuditData()
   }, [id, user])
-
-  useEffect(() => {
-    if (audit && audit.status === 'completed' && audit.analysis_data) {
-      const ad = audit.analysis_data
-      if (ad.received_url) {
-        console.group(`[Audit Debug] Resultado da Auditoria`)
-        console.log(`URL received: ${ad.received_url}`)
-        console.log(
-          `channelId resolved: ${ad.youtube_channel_id} (Format: ${ad.resolved_url_type})`,
-        )
-
-        const stats = ad.raw_data?.channel?.items?.[0]?.statistics
-        if (stats) {
-          console.log(`subscriberCount: ${stats.subscriberCount}`)
-          console.log(`videoCount: ${stats.videoCount}`)
-        }
-
-        console.log(
-          `Recent Videos:`,
-          ad.raw_data?.videos?.items?.map((v: any) => ({
-            id: v.id,
-            title: v.snippet?.title,
-            views: v.statistics?.viewCount,
-            publishedAt: v.snippet?.publishedAt,
-          })),
-        )
-
-        console.log(`Metrics Used:`, ad.metrics)
-        console.log(`Score Breakdown:`, ad.score_breakdown)
-        console.groupEnd()
-      }
-    }
-  }, [audit?.status])
 
   if (loading)
     return (
@@ -146,10 +112,12 @@ export default function ChannelAudit() {
         </Card>
 
         <div className="lg:col-span-2 grid gap-6">
-          {metrics && <AuditMetrics metrics={metrics} breakdown={breakdown} />}
+          {metrics && (
+            <AuditMetrics metrics={metrics} breakdown={breakdown} platform={channel.platform} />
+          )}
 
           <div className="space-y-4">
-            <h3 className="text-xl font-heading font-semibold">Direcionamento de Conteúdo</h3>
+            <h3 className="text-xl font-heading font-semibold">Oportunidades e Direcionamento</h3>
             {analysis.content_suggestions?.map((s: string, idx: number) => (
               <Card key={idx} className="border-l-4 border-l-accent">
                 <CardContent className="p-4">{s}</CardContent>
@@ -165,13 +133,15 @@ export default function ChannelAudit() {
         </h2>
         <Card className="bg-primary text-primary-foreground max-w-md">
           <CardHeader>
-            <CardTitle>Contratar Agente de Edição</CardTitle>
+            <CardTitle>Inicie seu Primeiro Projeto</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm mb-6">Aumente seu volume de Shorts automaticamente com IA.</p>
+            <p className="text-sm mb-6">
+              Comece a gerar vídeos virais agora mesmo enviando seu primeiro material.
+            </p>
             <Button variant="secondary" className="w-full gap-2" asChild>
-              <Link to="/marketplace">
-                Acessar Marketplace <ArrowRight className="h-4 w-4" />
+              <Link to={`/audit/result/${audit?.id}`}>
+                Ir para Envio de Vídeo <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
           </CardContent>

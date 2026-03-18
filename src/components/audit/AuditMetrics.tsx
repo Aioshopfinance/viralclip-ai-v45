@@ -2,18 +2,27 @@ import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Users, Video, Eye, Calendar } from 'lucide-react'
 
-export function AuditMetrics({ metrics, breakdown }: { metrics: any; breakdown: any }) {
+export function AuditMetrics({
+  metrics,
+  breakdown,
+  platform = 'youtube',
+}: {
+  metrics: any
+  breakdown: any
+  platform?: string
+}) {
+  const countLabel = platform.toLowerCase() === 'tiktok' ? 'Seguidores' : 'Inscritos'
+  const countValue = metrics?.follower_count ?? metrics?.subscriber_count ?? 0
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="p-4 flex flex-col items-center justify-center text-center space-y-2 border-none shadow bg-card/50">
           <Users className="h-5 w-5 text-primary" />
           <p className="text-[10px] md:text-xs text-muted-foreground uppercase font-semibold tracking-wider">
-            Inscritos
+            {countLabel}
           </p>
-          <p className="font-bold text-lg">
-            {metrics?.subscriber_count?.toLocaleString('pt-BR') || '-'}
-          </p>
+          <p className="font-bold text-lg">{countValue.toLocaleString('pt-BR') || '-'}</p>
         </Card>
         <Card className="p-4 flex flex-col items-center justify-center text-center space-y-2 border-none shadow bg-card/50">
           <Video className="h-5 w-5 text-primary" />

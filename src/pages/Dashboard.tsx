@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, TrendingUp, Sparkles, Youtube } from 'lucide-react'
+import { Plus, TrendingUp, Sparkles, Youtube, Video } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -80,7 +80,6 @@ export default function Dashboard() {
           if (latest?.status === 'pending') {
             const age = Date.now() - new Date(latest.created_at).getTime()
             if (age > 45000) {
-              console.log(`[Audit Lifecycle] Failed: ${latest.id} - Error: Timeout exceeded`)
               supabase
                 .from('audits')
                 .update({
@@ -106,7 +105,21 @@ export default function Dashboard() {
     if (!auditUrl) {
       toast({
         title: 'Aviso',
-        description: 'Insira a URL do canal (tente usar a palavra "fail" para simular erro).',
+        description: 'Insira a URL do canal do YouTube ou TikTok.',
+      })
+      return
+    }
+
+    const isTikTok = auditUrl.toLowerCase().includes('tiktok.com')
+    const isYoutube =
+      auditUrl.toLowerCase().includes('youtube.com') || auditUrl.toLowerCase().includes('youtu.be')
+
+    if (!isTikTok && !isYoutube) {
+      toast({
+        title: 'Plataforma em Construção',
+        description:
+          'No momento, suportamos apenas YouTube e TikTok. Instagram e Twitch chegarão em breve!',
+        variant: 'destructive',
       })
       return
     }
@@ -118,10 +131,8 @@ export default function Dashboard() {
       } = await supabase.auth.getUser()
       if (!user) throw new Error('Autenticação necessária')
 
+      const platform = isTikTok ? 'tiktok' : 'youtube'
       const normalizedLink = normalizeUrl(auditUrl)
-      console.log(
-        `[Audit Lifecycle] Normalizing URL for deduplication: ${auditUrl} -> ${normalizedLink}`,
-      )
 
       let channelId = ''
       const { data: existingChannel } = await supabase
@@ -133,7 +144,6 @@ export default function Dashboard() {
 
       if (existingChannel) {
         channelId = existingChannel.id
-        console.log(`[Audit Lifecycle] Reusing existing channel_id: ${channelId}`)
       } else {
         const { data: newChannel, error: chErr } = await supabase
           .from('channels')
@@ -141,34 +151,26 @@ export default function Dashboard() {
             user_id: user.id,
             channel_link: auditUrl,
             normalized_link: normalizedLink,
-            platform: auditUrl.includes('instagram')
-              ? 'instagram'
-              : auditUrl.includes('tiktok')
-                ? 'tiktok'
-                : 'youtube',
+            platform,
             channel_name: 'Novo Canal Detectado',
           } as any)
           .select()
           .single()
         if (chErr) throw chErr
         channelId = newChannel.id
-        console.log(`[Audit Lifecycle] Created new channel_id: ${channelId}`)
       }
 
-      const { data: newAudit, error: auditErr } = await supabase
+      const { error: auditErr } = await supabase
         .from('audits')
         .insert({ user_id: user.id, channel_id: channelId, status: 'pending', type: 'free_audit' })
-        .select()
-        .single()
 
       if (auditErr) throw auditErr
 
-      console.log(
-        `[Audit Lifecycle] Created Audit: ${newAudit.id} | Channel: ${channelId} | User: ${user.id} | Status: pending`,
-      )
-
       setAuditUrl('')
-      toast({ title: 'Auditoria Iniciada', description: 'A IA está analisando seu canal.' })
+      toast({
+        title: 'Auditoria Iniciada',
+        description: 'Nossa IA está analisando seu perfil em tempo real.',
+      })
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' })
     } finally {
@@ -178,9 +180,7 @@ export default function Dashboard() {
 
   const handleRetryAudit = async (auditId: string) => {
     try {
-      console.log(`[Audit Lifecycle] Created (Retry): ${auditId}`)
       toast({ title: 'Retentando auditoria...', description: 'Aguarde o processamento.' })
-
       const { error } = await supabase
         .from('audits')
         .update({ status: 'pending', error_message: null })
@@ -205,15 +205,16 @@ export default function Dashboard() {
         <Card className="col-span-1 md:col-span-3 border-secondary/30 bg-secondary/5 relative overflow-hidden">
           <CardHeader className="pb-2">
             <CardTitle className="text-xl flex items-center gap-2">
-              <Youtube className="h-6 w-6 text-secondary" /> Nova Auditoria IA
+              <Video className="h-6 w-6 text-secondary" /> Nova Auditoria IA
             </CardTitle>
             <CardDescription>
-              Cole a URL para gerar um canal único e analisar as métricas.
+              Cole a URL do seu YouTube ou TikTok para analisar as métricas e descobrir
+              oportunidades virais.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col sm:flex-row gap-3 pt-4">
             <Input
-              placeholder="Ex: https://youtube.com/@meucanal (use 'fail' na URL para simular erro)"
+              placeholder="Ex: https://tiktok.com/@meuperfil ou youtube.com/@canal"
               value={auditUrl}
               onChange={(e) => setAuditUrl(e.target.value)}
               className="bg-background max-w-xl"

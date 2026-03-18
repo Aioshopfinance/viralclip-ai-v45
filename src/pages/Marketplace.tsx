@@ -23,9 +23,9 @@ export default function Marketplace() {
     if (success) {
       toast({
         title: 'Serviço Contratado!',
-        description: `O projeto para "${service.title}" foi iniciado.`,
+        description: `As opções para "${service.title}" foram liberadas.`,
       })
-      navigate('/projects')
+      navigate('/dashboard')
     } else {
       toast({
         variant: 'destructive',
