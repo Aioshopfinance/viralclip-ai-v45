@@ -39,3 +39,47 @@ export const MOCK_SERVICES = [
     category: 'Audits',
   },
 ]
+
+export const MOCK_PROJECTS = [
+  {
+    id: '1',
+    service_name: 'Cortes Virais',
+    status: 'in_progress',
+    channel_name: 'Meu Canal',
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: '2',
+    service_name: 'Auditoria IA',
+    status: 'completed',
+    channel_name: 'Canal Secundário',
+    created_at: new Date(Date.now() - 86400000).toISOString(),
+  },
+]
+
+export const MOCK_TIMELINE = [
+  {
+    id: 'step_1',
+    title: 'Projeto Iniciado',
+    description: 'Recebemos as informações do seu projeto.',
+    status: 'completed',
+    time: '10:00',
+    date: new Date().toISOString(),
+  },
+  {
+    id: 'step_2',
+    title: 'Processamento de IA',
+    description: 'Nossa inteligência artificial está analisando o conteúdo...',
+    status: 'in_progress',
+    time: '10:05',
+    date: new Date().toISOString(),
+  },
+  {
+    id: 'step_3',
+    title: 'Finalização',
+    description: 'Aguardando a conclusão da geração dos resultados.',
+    status: 'pending',
+    time: '--:--',
+    date: '',
+  },
+]
