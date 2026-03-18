@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { supabase } from '@/lib/supabase/client'
 
-type UserRole = 'client' | 'admin' | string
+// Definindo explicitamente a matriz de papéis (Role Matrix) conforme a User Story
+export type UserRole = 'visitor' | 'client' | 'admin' | 'affiliate' | 'collaborator' | 'operator_ia'
 
 interface AppState {
   user: {
@@ -72,7 +73,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           id: profile.id,
           name: profile.full_name || 'Usuário',
           email: profile.email || '',
-          role: profile.role?.toLowerCase() as UserRole,
+          role: (profile.role?.toLowerCase() || 'client') as UserRole,
           credits: credits?.balance || 0,
         })
       } else {

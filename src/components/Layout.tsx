@@ -1,39 +1,9 @@
-import { Outlet, useLocation, Navigate } from 'react-router-dom'
-import { Loader2 } from 'lucide-react'
+import { Outlet } from 'react-router-dom'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { AppHeader } from '@/components/layout/AppHeader'
-import useAppStore from '@/stores/main'
 
 export default function Layout() {
-  const { user, isAuthLoading } = useAppStore()
-  const location = useLocation()
-
-  if (isAuthLoading) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
-        <Loader2 className="h-8 w-8 text-primary animate-spin" />
-        <p className="text-muted-foreground mt-4 font-medium animate-pulse">
-          Carregando workspace...
-        </p>
-      </div>
-    )
-  }
-
-  const isLanding = location.pathname === '/'
-
-  if (isLanding && !user) {
-    return <Outlet />
-  }
-
-  if (isLanding && user) {
-    return <Navigate to="/dashboard" replace />
-  }
-
-  if (!isLanding && !user) {
-    return <Navigate to="/" replace />
-  }
-
   return (
     <SidebarProvider>
       <div className="min-h-screen bg-background text-foreground flex w-full">
