@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Activity, AlertCircle, Instagram, Video, Youtube, RefreshCw, Loader2 } from 'lucide-react'
+import {
+  Activity,
+  AlertCircle,
+  Instagram,
+  Video,
+  Youtube,
+  RefreshCw,
+  Loader2,
+  Clock,
+} from 'lucide-react'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -17,9 +26,9 @@ interface ChannelCardProps {
 }
 
 const loadingMsgs = [
-  'Resolving channel...',
-  'Fetching YouTube data...',
-  'Calculating growth score...',
+  'Resolving channel pipeline...',
+  'Fetching verified data...',
+  'Calculating honest metrics...',
 ]
 
 export function ChannelCard({ channel, onRetry }: ChannelCardProps) {
@@ -30,9 +39,14 @@ export function ChannelCard({ channel, onRetry }: ChannelCardProps) {
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   )[0]
 
-  const score = latestAudit?.growth_score || 0
   const rawStatus = latestAudit?.status || 'pending'
   const status = rawStatus === 'error' ? 'failed' : rawStatus
+
+  const analysisData = latestAudit?.analysis_data as any
+  const integrationStatus = analysisData?.integrationStatus || 'real'
+  const isPendingIntegration = integrationStatus === 'pending'
+
+  const score = isPendingIntegration ? 0 : latestAudit?.growth_score || 0
 
   useEffect(() => {
     let interval: NodeJS.Timeout
@@ -43,12 +57,6 @@ export function ChannelCard({ channel, onRetry }: ChannelCardProps) {
     }
     return () => clearInterval(interval)
   }, [status])
-
-  useEffect(() => {
-    console.log(
-      `[Audit Lifecycle] Render - channel_id: ${channel.id} | audit_id: ${latestAudit?.id || 'none'} | status: ${status || 'none'} | normalized_url: ${(channel as any).normalized_link || 'none'}`,
-    )
-  }, [channel.id, latestAudit?.id, status, (channel as any).normalized_link])
 
   const PlatformIcon =
     channel.platform.toLowerCase() === 'instagram'
@@ -77,17 +85,21 @@ export function ChannelCard({ channel, onRetry }: ChannelCardProps) {
                   variant={
                     status === 'pending' || status === 'processing'
                       ? 'secondary'
-                      : status === 'failed'
+                      : status === 'failed' || integrationStatus === 'error'
                         ? 'destructive'
-                        : 'default'
+                        : isPendingIntegration
+                          ? 'outline'
+                          : 'default'
                   }
                   className="text-xs"
                 >
                   {status === 'pending' || status === 'processing'
                     ? 'Auditando...'
-                    : status === 'failed'
-                      ? 'Falhou'
-                      : 'Concluído'}
+                    : isPendingIntegration
+                      ? 'Pendente API'
+                      : status === 'failed' || integrationStatus === 'error'
+                        ? 'Falhou'
+                        : 'Concluído'}
                 </Badge>
               </div>
             </div>
@@ -95,12 +107,20 @@ export function ChannelCard({ channel, onRetry }: ChannelCardProps) {
           {status === 'failed' && (
             <div className="text-xs text-destructive flex items-start gap-1 mt-4 bg-destructive/10 p-2 rounded-md">
               <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>Real YouTube data currently unavailable</span>
+              <span>{analysisData?.message || 'Falha ao recuperar dados da API real.'}</span>
+            </div>
+          )}
+          {isPendingIntegration && status === 'completed' && (
+            <div className="text-xs text-muted-foreground flex items-start gap-1 mt-4 bg-muted/50 p-2 rounded-md border border-muted">
+              <Clock className="h-4 w-4 shrink-0" />
+              <span>Integração em desenvolvimento. Dados em breve.</span>
             </div>
           )}
         </div>
-        <div className="w-24 shrink-0 opacity-20 filter grayscale">
-          <ScoreGauge score={status === 'completed' ? score : 0} />
+        <div
+          className={`w-24 shrink-0 ${isPendingIntegration || status !== 'completed' ? 'opacity-20 filter grayscale' : ''}`}
+        >
+          <ScoreGauge score={score} />
         </div>
       </CardContent>
       <CardFooter className="bg-muted/30 border-t p-4 flex justify-between items-center">
@@ -120,7 +140,7 @@ export function ChannelCard({ channel, onRetry }: ChannelCardProps) {
           </Button>
         ) : (
           <Button size="sm" asChild disabled={status === 'pending' || status === 'processing'}>
-            <Link to={status === 'completed' ? `/channels/${channel.id}/audit` : '#'}>
+            <Link to={status === 'completed' ? `/audits/${latestAudit?.id}` : '#'}>
               {status === 'pending' || status === 'processing' ? 'Aguarde...' : 'Ver Relatório'}
             </Link>
           </Button>
@@ -132,9 +152,6 @@ export function ChannelCard({ channel, onRetry }: ChannelCardProps) {
           <Loader2 className="h-10 w-10 text-primary animate-spin mb-3" />
           <span className="font-semibold text-sm animate-pulse tracking-wide">
             {loadingMsgs[loadingMsgIdx]}
-          </span>
-          <span className="text-xs text-muted-foreground mt-2 font-medium bg-muted px-2 py-1 rounded-full">
-            Estimate: 20-40 seconds
           </span>
         </div>
       )}

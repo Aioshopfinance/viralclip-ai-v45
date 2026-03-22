@@ -519,7 +519,7 @@ export const Constants = {
 // Table: users
 //   FOREIGN KEY users_id_fkey: FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 //   PRIMARY KEY users_pkey: PRIMARY KEY (id)
-//   CHECK users_role_check: CHECK ((role = ANY (ARRAY['visitor'::text, 'client'::text, 'affiliate'::text, 'collaborator'::text, 'administrator'::text, 'operator_ia'::text])))
+//   CHECK users_role_check: CHECK ((role = ANY (ARRAY['visitor'::text, 'client'::text, 'affiliate'::text, 'collaborator'::text, 'administrator'::text, 'operator_ia'::text, 'subscriber'::text])))
 // Table: videos
 //   PRIMARY KEY videos_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY videos_project_id_fkey: FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE

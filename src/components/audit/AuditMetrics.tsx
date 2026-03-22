@@ -14,7 +14,7 @@ export function AuditMetrics({
   const isTikTok = platform.toLowerCase() === 'tiktok'
 
   const countLabel = isTikTok ? 'Seguidores' : 'Inscritos'
-  const countValue = metrics?.follower_count ?? metrics?.subscriber_count ?? 0
+  const countValue = metrics?.follower_count ?? metrics?.subscriber_count
 
   const engLabel = isTikTok ? 'Curtidas' : 'Views'
   const engValue = isTikTok
@@ -27,7 +27,7 @@ export function AuditMetrics({
     : '-'
 
   const vidLabel = isTikTok ? 'Engajamento' : 'Vídeos recentes'
-  const vidValue = metrics?.video_count ?? 0
+  const vidValue = metrics?.video_count
 
   return (
     <div className="space-y-6">
@@ -37,7 +37,9 @@ export function AuditMetrics({
           <p className="text-[10px] md:text-xs text-muted-foreground uppercase font-semibold tracking-wider">
             {countLabel}
           </p>
-          <p className="font-bold text-lg">{countValue?.toLocaleString('pt-BR') || '-'}</p>
+          <p className="font-bold text-lg">
+            {countValue != null ? countValue.toLocaleString('pt-BR') : '-'}
+          </p>
         </Card>
 
         <Card className="p-4 flex flex-col items-center justify-center text-center space-y-2 border-none shadow bg-card/50 hover:bg-card transition-colors">
@@ -49,7 +51,9 @@ export function AuditMetrics({
           <p className="text-[10px] md:text-xs text-muted-foreground uppercase font-semibold tracking-wider">
             {engLabel}
           </p>
-          <p className="font-bold text-lg">{engValue?.toLocaleString('pt-BR') || '-'}</p>
+          <p className="font-bold text-lg">
+            {engValue != null ? engValue.toLocaleString('pt-BR') : '-'}
+          </p>
         </Card>
 
         <Card className="p-4 flex flex-col items-center justify-center text-center space-y-2 border-none shadow bg-card/50 hover:bg-card transition-colors">
@@ -61,7 +65,9 @@ export function AuditMetrics({
           <p className="text-[10px] md:text-xs text-muted-foreground uppercase font-semibold tracking-wider">
             {vidLabel}
           </p>
-          <p className="font-bold text-lg">{vidValue?.toLocaleString('pt-BR') || '-'}</p>
+          <p className="font-bold text-lg">
+            {vidValue != null ? vidValue.toLocaleString('pt-BR') : '-'}
+          </p>
         </Card>
 
         <Card className="p-4 flex flex-col items-center justify-center text-center space-y-2 border-none shadow bg-card/50 hover:bg-card transition-colors">
@@ -73,7 +79,7 @@ export function AuditMetrics({
         </Card>
       </div>
 
-      {breakdown && (
+      {breakdown && breakdown.frequency && (
         <Card className="p-6">
           <h3 className="font-semibold text-lg mb-4 font-heading">Composição do Score</h3>
           <div className="space-y-4">

@@ -71,13 +71,15 @@ export default function Dashboard() {
 
     initDashboard()
 
+    // Reduced polling frequency since Realtime handles most updates
     const timeoutInterval = setInterval(() => {
       setChannels((prev) => {
         prev.forEach((ch) => {
           const latest = [...(ch.audits || [])].sort(
             (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
           )[0]
-          if (latest?.status === 'pending') {
+
+          if (latest?.status === 'pending' || latest?.status === 'processing') {
             const age = Date.now() - new Date(latest.created_at).getTime()
             if (age > 45000) {
               supabase
@@ -93,7 +95,7 @@ export default function Dashboard() {
         })
         return prev
       })
-    }, 10000)
+    }, 15000)
 
     return () => {
       if (subscription) supabase.removeChannel(subscription)
