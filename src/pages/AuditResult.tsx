@@ -3,15 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Loader2,
   AlertCircle,
-  TrendingUp,
-  Lock,
-  CheckCircle2,
-  ChevronRight,
   Hash,
-  PlaySquare,
   UploadCloud,
   Link as LinkIcon,
   Video as VideoIcon,
+  Construction,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -32,7 +28,6 @@ export default function AuditResult() {
   const [audit, setAudit] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
   const [uploadType, setUploadType] = useState('url')
   const [videoUrl, setVideoUrl] = useState('')
   const [videoFile, setVideoFile] = useState<File | null>(null)
@@ -65,20 +60,32 @@ export default function AuditResult() {
         setLoading(false)
       }
     }
+
     fetchAudit()
   }, [auditId, user])
 
   const handleCreateProject = async () => {
+    if (!audit?.channel?.id) {
+      toast({
+        title: 'Erro',
+        description: 'Canal não encontrado para criar o projeto.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     if (uploadType === 'url' && !videoUrl) {
       toast({ title: 'Aviso', description: 'Insira a URL do vídeo.' })
       return
     }
+
     if (uploadType === 'upload' && !videoFile) {
       toast({ title: 'Aviso', description: 'Selecione um arquivo de vídeo.' })
       return
     }
 
     setIsSubmitting(true)
+
     try {
       const { data: project, error: projErr } = await supabase
         .from('projects')
@@ -96,9 +103,9 @@ export default function AuditResult() {
       if (uploadType === 'upload' && videoFile) {
         const ext = videoFile.name.split('.').pop()
         const path = `${user?.id}/${project.id}.${ext}`
-        const { error: upErr } = await supabase.storage
-          .from('video-uploads')
-          .upload(path, videoFile)
+
+        const { error: upErr } = await supabase.storage.from('video-uploads').upload(path, videoFile)
+
         if (upErr) throw upErr
 
         const { error: vidErr } = await supabase.from('videos').insert({
@@ -107,6 +114,7 @@ export default function AuditResult() {
           source_type: 'upload',
           storage_path: path,
         })
+
         if (vidErr) throw vidErr
       } else {
         const { error: vidErr } = await supabase.from('videos').insert({
@@ -115,6 +123,7 @@ export default function AuditResult() {
           source_type: 'url',
           external_url: videoUrl,
         })
+
         if (vidErr) throw vidErr
       }
 
@@ -122,35 +131,59 @@ export default function AuditResult() {
         title: 'Sucesso',
         description: 'Projeto criado e vídeo recebido para processamento!',
       })
+
       navigate('/projects')
     } catch (err: any) {
-      toast({ title: 'Erro ao enviar vídeo', description: err.message, variant: 'destructive' })
+      toast({
+        title: 'Erro ao enviar vídeo',
+        description: err.message,
+        variant: 'destructive',
+      })
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  if (loading)
+  if (loading) {
     return (
       <div className="flex justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     )
-  if (error || !audit)
+  }
+
+  if (error || !audit) {
     return (
       <div className="text-center py-20">
-        <AlertCircle className="h-12 w-12 mx-auto text-destructive" />
-        <p>{error}</p>
+        <AlertCircle className="h-12 w-12 mx-auto text-destructive mb-4" />
+        <p>{error || 'Erro ao carregar auditoria.'}</p>
       </div>
     )
+  }
 
   const channel = audit.channel || {}
   const analysis = audit.analysis_data || {}
-  const metrics = analysis.metrics || null
-  const breakdown = analysis.score_breakdown || null
+
+  // Compatibilidade com estrutura nova (analysis.data.*) e antiga (analysis.*)
+  const analysisPayload = analysis.data || analysis
+  const metrics = analysisPayload?.metrics || null
+  const breakdown = analysisPayload?.score_breakdown || null
+  const suggestions = analysisPayload?.content_suggestions || []
+
   const score = breakdown?.total || audit.growth_score || 0
 
-  const avatarUrl = `https://img.usecurling.com/i?q=${encodeURIComponent(channel.platform || 'youtube')}&color=gradient`
+  const isPendingIntegration =
+    audit.status === 'pending_integration' ||
+    analysis.auditStatus === 'pending_integration' ||
+    analysis.integrationStatus === 'pending_integration'
+
+  const pendingMessage =
+    analysis.message ||
+    'A integração com essa plataforma ainda está em desenvolvimento. Em breve você verá dados reais aqui.'
+
+  const avatarUrl = `https://img.usecurling.com/i?q=${encodeURIComponent(
+    channel.platform || 'youtube',
+  )}&color=gradient`
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-fade-in pb-20">
@@ -161,115 +194,150 @@ export default function AuditResult() {
             <h1 className="text-3xl font-heading font-bold">
               {channel.channel_name || 'Canal Analisado'}
             </h1>
+
             <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
               <span className="capitalize">{channel.platform}</span>
-              {analysis.youtube_channel_id && (
+
+              {analysis?.meta?.canonicalChannelId && (
                 <>
                   <span>•</span>
                   <span className="flex items-center gap-1 font-mono text-xs bg-muted px-2 py-0.5 rounded">
-                    <Hash className="h-3 w-3" /> {analysis.youtube_channel_id}
+                    <Hash className="h-3 w-3" /> {analysis.meta.canonicalChannelId}
                   </span>
                 </>
               )}
             </div>
           </div>
         </div>
+
         <Button variant="outline" onClick={() => navigate('/dashboard')}>
           Voltar ao Dashboard
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-1 border-secondary/20 shadow-lg relative flex flex-col items-center justify-center p-6 text-center overflow-hidden">
-          <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-secondary to-accent"></div>
-          <CardTitle className="mb-6 font-heading text-xl">Score de Crescimento Viral</CardTitle>
-          <ScoreGauge score={score} className="w-48" />
-          <p className="mt-6 text-sm text-muted-foreground max-w-[250px]">
-            Baseado em métricas de retenção, frequência e qualidade comparado ao seu nicho.
-          </p>
-        </Card>
+      {isPendingIntegration ? (
+        <Card className="border-yellow-500/30 bg-yellow-500/5">
+          <CardContent className="p-8 text-center">
+            <Construction className="h-12 w-12 mx-auto text-yellow-500 mb-4" />
+            <h2 className="text-2xl font-heading font-bold mb-2">Integração em Desenvolvimento</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">{pendingMessage}</p>
 
-        <div className="lg:col-span-2">
-          {metrics && (
-            <AuditMetrics metrics={metrics} breakdown={null} platform={channel.platform} />
-          )}
-
-          {analysis.content_suggestions && (
-            <div className="mt-6 space-y-4">
-              <h3 className="text-lg font-heading font-semibold">Oportunidades</h3>
-              {analysis.content_suggestions.map((s: string, idx: number) => (
-                <Card key={idx} className="border-l-4 border-l-accent bg-card/50">
-                  <CardContent className="p-4 text-sm">{s}</CardContent>
-                </Card>
-              ))}
+            <div className="mt-6">
+              <Button onClick={() => navigate('/dashboard')}>Voltar ao Dashboard</Button>
             </div>
-          )}
-        </div>
-      </div>
-
-      <div className="mt-12 space-y-6">
-        <h2 className="text-2xl font-heading font-bold flex items-center gap-2">
-          <VideoIcon className="text-primary" /> Próximo Passo: Iniciar Projeto
-        </h2>
-        <Card>
-          <CardHeader>
-            <CardTitle>Envie um vídeo para gerar cortes virais</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={uploadType} onValueChange={setUploadType}>
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="url">
-                  <LinkIcon className="h-4 w-4 mr-2" /> Link do Vídeo
-                </TabsTrigger>
-                <TabsTrigger value="upload">
-                  <UploadCloud className="h-4 w-4 mr-2" /> Upload de Arquivo
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="url" className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Link Externo do Vídeo Completo</label>
-                  <Input
-                    placeholder="https://..."
-                    value={videoUrl}
-                    onChange={(e) => setVideoUrl(e.target.value)}
-                  />
-                </div>
-              </TabsContent>
-              <TabsContent value="upload">
-                <div
-                  className="border-2 border-dashed border-border rounded-lg p-10 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => document.getElementById('file-upload')?.click()}
-                >
-                  <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
-                  <p className="font-medium">Clique ou arraste seu vídeo aqui</p>
-                  <p className="text-sm text-muted-foreground mt-1">MP4, MOV, AVI até 500MB</p>
-                  <input
-                    id="file-upload"
-                    type="file"
-                    accept="video/*"
-                    className="hidden"
-                    onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
-                  />
-                  {videoFile && (
-                    <p className="mt-4 text-primary font-medium">
-                      Arquivo selecionado: {videoFile.name}
-                    </p>
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
-            <Button
-              className="w-full mt-6"
-              size="lg"
-              onClick={handleCreateProject}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              {isSubmitting ? 'Iniciando Projeto...' : 'Enviar Vídeo e Criar Projeto'}
-            </Button>
           </CardContent>
         </Card>
-      </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <Card className="lg:col-span-1 border-secondary/20 shadow-lg relative flex flex-col items-center justify-center p-6 text-center overflow-hidden">
+              <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-secondary to-accent"></div>
+              <CardTitle className="mb-6 font-heading text-xl">Score de Crescimento Viral</CardTitle>
+              <ScoreGauge score={score} className="w-48" />
+              <p className="mt-6 text-sm text-muted-foreground max-w-[250px]">
+                Baseado em métricas de frequência, engajamento e atividade do canal.
+              </p>
+            </Card>
+
+            <div className="lg:col-span-2">
+              {metrics && (
+                <AuditMetrics metrics={metrics} breakdown={breakdown} platform={channel.platform} />
+              )}
+
+              {suggestions.length > 0 && (
+                <div className="mt-6 space-y-4">
+                  <h3 className="text-lg font-heading font-semibold">Oportunidades</h3>
+
+                  {suggestions.map((s: string, idx: number) => (
+                    <Card key={idx} className="border-l-4 border-l-accent bg-card/50">
+                      <CardContent className="p-4 text-sm">{s}</CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {!metrics && (
+                <Card className="mt-4 border-yellow-500/30 bg-yellow-500/5">
+                  <CardContent className="p-4 text-sm text-muted-foreground">
+                    Os dados detalhados dessa auditoria ainda não puderam ser exibidos corretamente.
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-12 space-y-6">
+            <h2 className="text-2xl font-heading font-bold flex items-center gap-2">
+              <VideoIcon className="text-primary" /> Próximo Passo: Iniciar Projeto
+            </h2>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Envie um vídeo para gerar cortes virais</CardTitle>
+              </CardHeader>
+
+              <CardContent>
+                <Tabs value={uploadType} onValueChange={setUploadType}>
+                  <TabsList className="grid w-full grid-cols-2 mb-6">
+                    <TabsTrigger value="url">
+                      <LinkIcon className="h-4 w-4 mr-2" /> Link do Vídeo
+                    </TabsTrigger>
+                    <TabsTrigger value="upload">
+                      <UploadCloud className="h-4 w-4 mr-2" /> Upload de Arquivo
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="url" className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Link Externo do Vídeo Completo</label>
+                      <Input
+                        placeholder="https://..."
+                        value={videoUrl}
+                        onChange={(e) => setVideoUrl(e.target.value)}
+                      />
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="upload">
+                    <div
+                      className="border-2 border-dashed border-border rounded-lg p-10 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => document.getElementById('file-upload')?.click()}
+                    >
+                      <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
+                      <p className="font-medium">Clique ou arraste seu vídeo aqui</p>
+                      <p className="text-sm text-muted-foreground mt-1">MP4, MOV, AVI até 500MB</p>
+
+                      <input
+                        id="file-upload"
+                        type="file"
+                        accept="video/*"
+                        className="hidden"
+                        onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+                      />
+
+                      {videoFile && (
+                        <p className="mt-4 text-primary font-medium">
+                          Arquivo selecionado: {videoFile.name}
+                        </p>
+                      )}
+                    </div>
+                  </TabsContent>
+                </Tabs>
+
+                <Button
+                  className="w-full mt-6"
+                  size="lg"
+                  onClick={handleCreateProject}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  {isSubmitting ? 'Iniciando Projeto...' : 'Enviar Vídeo e Criar Projeto'}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   )
 }

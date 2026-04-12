@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Bot, CheckCircle2, Circle, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
+import { triggerAuditProcessing } from '@/lib/audit-service'
 import { Progress } from '@/components/ui/progress'
-import useAppStore from '@/stores/main'
 
 const STEPS = [
   'Iniciando conexão...',
@@ -18,7 +18,6 @@ const MIN_PROCESSING_TIME = 15000 // 15 seconds
 export default function AuditProcessing() {
   const { auditId } = useParams()
   const navigate = useNavigate()
-  const { user } = useAppStore()
 
   const [stepIdx, setStepIdx] = useState(0)
   const [minTimePassed, setMinTimePassed] = useState(false)
@@ -26,22 +25,19 @@ export default function AuditProcessing() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!user || !auditId) {
+    if (!auditId) {
       navigate('/')
       return
     }
 
-    // Progress animation
     const stepInterval = setInterval(() => {
       setStepIdx((prev) => Math.min(prev + 1, STEPS.length - 1))
     }, MIN_PROCESSING_TIME / STEPS.length)
 
-    // Minimum time lock
     const minTimeTimeout = setTimeout(() => {
       setMinTimePassed(true)
     }, MIN_PROCESSING_TIME)
 
-    // Check current status immediately
     supabase
       .from('audits')
       .select('status, error_message')
@@ -51,10 +47,14 @@ export default function AuditProcessing() {
         if (data) {
           setAuditStatus(data.status)
           if (data.error_message) setErrorMsg(data.error_message)
+
+          if (data.status === 'pending') {
+            console.log('[AuditProcessing] Audit still pending — re-triggering Edge Function')
+            triggerAuditProcessing(auditId)
+          }
         }
       })
 
-    // Listen for database updates
     const subscription = supabase
       .channel(`audit-proc-${auditId}`)
       .on(
@@ -72,12 +72,11 @@ export default function AuditProcessing() {
       clearTimeout(minTimeTimeout)
       supabase.removeChannel(subscription)
     }
-  }, [auditId, user, navigate])
+  }, [auditId, navigate])
 
-  // Completion logic
   useEffect(() => {
     if (minTimePassed) {
-      if (auditStatus === 'completed') {
+      if (auditStatus === 'completed' || auditStatus === 'pending_integration') {
         navigate(`/audit/result/${auditId}`, { replace: true })
       }
     }
@@ -91,7 +90,8 @@ export default function AuditProcessing() {
         </div>
         <h1 className="text-3xl font-bold font-heading">Auditoria Interrompida</h1>
         <p className="text-muted-foreground mt-2 max-w-md">
-          Dados reais do YouTube ainda não disponíveis ou a URL informada é inválida.
+          Ocorreu um erro ao extrair as métricas. Verifique se a URL informada é válida e tente
+          novamente.
         </p>
         {errorMsg && (
           <p className="text-sm bg-muted text-muted-foreground p-3 rounded mt-4 max-w-md">
@@ -99,16 +99,16 @@ export default function AuditProcessing() {
           </p>
         )}
         <button
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate('/')}
           className="mt-8 text-primary font-medium hover:underline"
         >
-          Voltar ao painel
+          Voltar e tentar novamente
         </button>
       </div>
     )
   }
 
-  const progressValue = Math.min(((stepIdx + 1) / STEPS.length) * 100, 99) // Stay at 99% until fully done
+  const progressValue = Math.min(((stepIdx + 1) / STEPS.length) * 100, 99)
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-md mx-auto animate-fade-in px-4">

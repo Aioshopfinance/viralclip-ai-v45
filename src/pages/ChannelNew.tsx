@@ -15,6 +15,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { normalizeUrl } from '@/lib/utils'
+import { triggerAuditProcessing } from '@/lib/audit-service'
 import type { Database } from '@/lib/supabase/types'
 
 type AuditInsert = Database['public']['Tables']['audits']['Insert'] & { type: string }
@@ -101,26 +102,25 @@ export default function ChannelNew() {
           variant: 'destructive',
         })
       }
-      submitChannel()
+      handleSubmit()
     }
   }
 
-  const submitChannel = async () => {
+  const handleSubmit = async () => {
     setIsProcessing(true)
 
     try {
-      const {
-        data: { session },
-        error: authErr,
-      } = await supabase.auth.getSession()
-
-      if (authErr || !session?.user) {
-        throw new Error(
-          'Você precisa estar autenticado para registrar um canal. Por favor, faça login novamente.',
-        )
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !sessionData?.session?.user) {
+        setIsProcessing(false)
+        return toast({
+          title: 'Sessão expirada',
+          description:
+            'Você precisa estar autenticado para registrar um canal. Por favor, faça login novamente.',
+        })
       }
 
-      const uid = session.user.id
+      const uid = sessionData.session.user.id
       const finalPlatform = platform === 'outros' ? customPlatform.trim() : platform
       const finalNiche = niche === 'outros' ? customNiche.trim() : niche
       const normalizedLink = normalizeUrl(url)
@@ -163,15 +163,19 @@ export default function ChannelNew() {
         status: 'pending',
         type: 'free_audit',
       }
-      const { error: aErr } = await supabase.from('audits').insert(auditData as any)
+
+      const { data: insertedAudit, error: aErr } = await supabase
+        .from('audits')
+        .insert(auditData as any)
+        .select()
+        .single()
 
       if (aErr) throw aErr
 
-      toast({
-        title: 'Sucesso!',
-        description: 'Seu canal foi registrado e a auditoria está na fila.',
-      })
-      navigate('/dashboard')
+      console.log(`[Frontend] audit created:`, insertedAudit.id)
+
+      triggerAuditProcessing(insertedAudit.id)
+      navigate(`/audit/processing/${insertedAudit.id}`)
     } catch (error: any) {
       setIsProcessing(false)
 
@@ -196,10 +200,10 @@ export default function ChannelNew() {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center space-y-6">
         <Bot className="h-12 w-12 text-secondary animate-pulse" />
-        <h2 className="text-2xl font-bold">Auditando Canal...</h2>
+        <h2 className="text-2xl font-bold">Iniciando Auditoria...</h2>
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          O Agente Estrategista está avaliando seu conteúdo.
+          Registrando canal e disparando análise de IA.
         </p>
       </div>
     )
