@@ -1,19 +1,17 @@
-import { AuditResponse } from '../types.ts'
-
-export async function runTikTokAudit(url: string): Promise<Partial<AuditResponse>> {
-  const match = url.match(/@([\w.-]+)/)
-  const username = match ? match[1] : 'unknown_user'
-
+export async function runTikTokAudit(url: string) {
   return {
-    platform: 'tiktok',
-    integrationStatus: 'pending',
-    auditStatus: 'completed',
-    provider: 'tiktok-pending',
+    integrationStatus: 'pending_integration',
+    auditStatus: 'pending_integration',
+    provider: 'tiktok',
     message:
-      'A integração real com o TikTok está em desenvolvimento. Dados e métricas temporariamente indisponíveis.',
+      'A integração com a API oficial do TikTok está em desenvolvimento. Em breve você terá dados reais.',
+
     data: null,
+
+    error: null,
+
     meta: {
-      channelName: `@${username}`,
+      channelName: url,
     },
   }
 }
