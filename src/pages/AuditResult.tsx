@@ -104,7 +104,9 @@ export default function AuditResult() {
         const ext = videoFile.name.split('.').pop()
         const path = `${user?.id}/${project.id}.${ext}`
 
-        const { error: upErr } = await supabase.storage.from('video-uploads').upload(path, videoFile)
+        const { error: upErr } = await supabase.storage
+          .from('video-uploads')
+          .upload(path, videoFile)
 
         if (upErr) throw upErr
 
@@ -232,7 +234,9 @@ export default function AuditResult() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <Card className="lg:col-span-1 border-secondary/20 shadow-lg relative flex flex-col items-center justify-center p-6 text-center overflow-hidden">
               <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-secondary to-accent"></div>
-              <CardTitle className="mb-6 font-heading text-xl">Score de Crescimento Viral</CardTitle>
+              <CardTitle className="mb-6 font-heading text-xl">
+                Score de Crescimento Viral
+              </CardTitle>
               <ScoreGauge score={score} className="w-48" />
               <p className="mt-6 text-sm text-muted-foreground max-w-[250px]">
                 Baseado em métricas de frequência, engajamento e atividade do canal.
