@@ -85,10 +85,7 @@ Deno.serve(async (req: Request) => {
       channel_link: channel.channel_link,
     })
 
-    if (
-      normalized.meta.channelName &&
-      normalized.meta.channelName !== channel.channel_name
-    ) {
+    if (normalized.meta.channelName && normalized.meta.channelName !== channel.channel_name) {
       await supabase
         .from('channels')
         .update({ channel_name: normalized.meta.channelName })

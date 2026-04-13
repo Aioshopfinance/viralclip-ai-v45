@@ -111,38 +111,29 @@ export function normalizeAuditResult(raw: any, channel: any): NormalizedAuditRes
     safeNullableString(channel?.channel_name)
 
   const subscriberCount =
-    safeNumber(rawData?.channel?.subscriberCount) ||
-    safeNumber(rawData?.metrics?.subscriber_count)
+    safeNumber(rawData?.channel?.subscriberCount) || safeNumber(rawData?.metrics?.subscriber_count)
 
   const videoCount =
-    safeNumber(rawData?.channel?.videoCount) ||
-    safeNumber(rawData?.metrics?.video_count)
+    safeNumber(rawData?.channel?.videoCount) || safeNumber(rawData?.metrics?.video_count)
 
   const viewCount =
-    safeNumber(rawData?.channel?.viewCount) ||
-    safeNumber(rawData?.metrics?.total_views)
+    safeNumber(rawData?.channel?.viewCount) || safeNumber(rawData?.metrics?.total_views)
 
   const avgViews =
-    safeNumber(rawData?.aggregates?.avgViews) ||
-    safeNumber(rawData?.metrics?.average_views)
+    safeNumber(rawData?.aggregates?.avgViews) || safeNumber(rawData?.metrics?.average_views)
 
   const avgLikes =
-    safeNumber(rawData?.aggregates?.avgLikes) ||
-    safeNumber(rawData?.metrics?.average_likes)
+    safeNumber(rawData?.aggregates?.avgLikes) || safeNumber(rawData?.metrics?.average_likes)
 
   const avgComments =
-    safeNumber(rawData?.aggregates?.avgComments) ||
-    safeNumber(rawData?.metrics?.average_comments)
+    safeNumber(rawData?.aggregates?.avgComments) || safeNumber(rawData?.metrics?.average_comments)
 
   const engagementRate =
-    safeNumber(rawData?.aggregates?.engagementRate) ||
-    safeNumber(rawData?.metrics?.engagement_rate)
+    safeNumber(rawData?.aggregates?.engagementRate) || safeNumber(rawData?.metrics?.engagement_rate)
 
   const recentVideos = safeArray(rawData?.recent_videos)
   const contentSuggestions =
-    toStringArray(rawData?.content_suggestions) ||
-    toStringArray(raw?.recommendations) ||
-    []
+    toStringArray(rawData?.content_suggestions) || toStringArray(raw?.recommendations) || []
 
   const summary =
     safeString(rawData?.summary) ||
@@ -204,14 +195,14 @@ export function normalizeAuditResult(raw: any, channel: any): NormalizedAuditRes
     meta: {
       channelName: channelTitle,
       canonicalChannelId:
-        safeNullableString(rawMeta?.canonicalChannelId) ||
-        safeNullableString(rawData?.channel?.id),
+        safeNullableString(rawMeta?.canonicalChannelId) || safeNullableString(rawData?.channel?.id),
       platform: safeNullableString(channel?.platform),
       channelLink: safeNullableString(channel?.channel_link),
     },
     error: raw?.error
       ? {
-          message: safeNullableString(raw?.error?.message) || 'Erro desconhecido durante a auditoria.',
+          message:
+            safeNullableString(raw?.error?.message) || 'Erro desconhecido durante a auditoria.',
         }
       : null,
   }

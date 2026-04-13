@@ -40,14 +40,20 @@ export default function ChannelNew() {
     if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) return 'youtube'
     if (lowerUrl.includes('instagram.com')) return 'instagram'
     if (lowerUrl.includes('tiktok.com')) return 'tiktok'
-    if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.watch') || lowerUrl.includes('fb.com')) return 'facebook'
+    if (
+      lowerUrl.includes('facebook.com') ||
+      lowerUrl.includes('fb.watch') ||
+      lowerUrl.includes('fb.com')
+    )
+      return 'facebook'
     if (lowerUrl.includes('kwai.com') || lowerUrl.includes('kw.ai')) return 'kwai'
     if (lowerUrl.includes('linkedin.com')) return 'linkedin'
     if (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com')) return 'twitter'
     if (lowerUrl.includes('pinterest.com') || lowerUrl.includes('pin.it')) return 'pinterest'
     if (lowerUrl.includes('twitch.tv')) return 'twitch'
     if (lowerUrl.includes('spotify.com')) return 'spotify'
-    if (lowerUrl.includes('apple.com/podcast') || lowerUrl.includes('podcasts.apple.com')) return 'apple_podcasts'
+    if (lowerUrl.includes('apple.com/podcast') || lowerUrl.includes('podcasts.apple.com'))
+      return 'apple_podcasts'
     if (lowerUrl.includes('t.me') || lowerUrl.includes('telegram.me')) return 'telegram'
     if (lowerUrl.includes('whatsapp.com') || lowerUrl.includes('wa.me')) return 'whatsapp'
     if (lowerUrl.includes('discord.com') || lowerUrl.includes('discord.gg')) return 'discord'
@@ -118,7 +124,8 @@ export default function ChannelNew() {
         setIsProcessing(false)
         return toast({
           title: 'Sessão expirada',
-          description: 'Você precisa estar autenticado para registrar um canal. Por favor, faça login novamente.',
+          description:
+            'Você precisa estar autenticado para registrar um canal. Por favor, faça login novamente.',
         })
       }
 
@@ -342,9 +349,7 @@ export default function ChannelNew() {
               </Button>
             )}
 
-            <Button onClick={handleNext}>
-              {step === 1 ? 'Avançar' : 'Iniciar Auditoria'}
-            </Button>
+            <Button onClick={handleNext}>{step === 1 ? 'Avançar' : 'Iniciar Auditoria'}</Button>
           </div>
         </CardContent>
       </Card>

@@ -92,7 +92,8 @@ export default function AuditProcessing() {
         <h1 className="text-3xl font-bold font-heading">Auditoria Interrompida</h1>
 
         <p className="text-muted-foreground mt-2 max-w-md">
-          Ocorreu um erro ao extrair as métricas. Verifique se a URL informada é válida e tente novamente.
+          Ocorreu um erro ao extrair as métricas. Verifique se a URL informada é válida e tente
+          novamente.
         </p>
 
         {errorMsg && (
@@ -125,9 +126,7 @@ export default function AuditProcessing() {
         </div>
       </div>
 
-      <h1 className="text-3xl font-bold font-heading text-center mb-2">
-        Auditoria em andamento
-      </h1>
+      <h1 className="text-3xl font-bold font-heading text-center mb-2">Auditoria em andamento</h1>
 
       <p className="text-muted-foreground text-center mb-8 h-6 transition-all duration-300">
         {STEPS[stepIdx]}

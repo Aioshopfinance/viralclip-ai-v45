@@ -242,11 +242,7 @@ export default function AuditResult() {
 
             <div className="lg:col-span-2">
               {metrics && (
-                <AuditMetrics
-                  metrics={metrics}
-                  breakdown={breakdown}
-                  platform={channel.platform}
-                />
+                <AuditMetrics metrics={metrics} breakdown={breakdown} platform={channel.platform} />
               )}
 
               {suggestions.length > 0 && (
