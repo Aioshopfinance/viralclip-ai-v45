@@ -13,7 +13,7 @@ const STEPS = [
   'Gerando score...',
 ]
 
-const MIN_PROCESSING_TIME = 15000 // 15 seconds
+const MIN_PROCESSING_TIME = 15000
 
 export default function AuditProcessing() {
   const { auditId } = useParams()
@@ -75,10 +75,10 @@ export default function AuditProcessing() {
   }, [auditId, navigate])
 
   useEffect(() => {
-    if (minTimePassed) {
-      if (auditStatus === 'completed' || auditStatus === 'pending_integration') {
-        navigate(`/audit/result/${auditId}`, { replace: true })
-      }
+    if (!minTimePassed) return
+
+    if (auditStatus === 'completed' || auditStatus === 'pending_integration') {
+      navigate(`/audit/result/${auditId}`, { replace: true })
     }
   }, [minTimePassed, auditStatus, navigate, auditId])
 
@@ -88,16 +88,19 @@ export default function AuditProcessing() {
         <div className="w-20 h-20 bg-destructive/10 rounded-full flex items-center justify-center text-destructive mb-6">
           <AlertCircle className="w-10 h-10" />
         </div>
+
         <h1 className="text-3xl font-bold font-heading">Auditoria Interrompida</h1>
+
         <p className="text-muted-foreground mt-2 max-w-md">
-          Ocorreu um erro ao extrair as métricas. Verifique se a URL informada é válida e tente
-          novamente.
+          Ocorreu um erro ao extrair as métricas. Verifique se a URL informada é válida e tente novamente.
         </p>
+
         {errorMsg && (
           <p className="text-sm bg-muted text-muted-foreground p-3 rounded mt-4 max-w-md">
             {errorMsg}
           </p>
         )}
+
         <button
           onClick={() => navigate('/')}
           className="mt-8 text-primary font-medium hover:underline"
@@ -116,12 +119,16 @@ export default function AuditProcessing() {
         <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center text-primary animate-pulse-glow">
           <Bot className="w-12 h-12" />
         </div>
+
         <div className="absolute top-0 right-0 w-6 h-6 bg-secondary rounded-full flex items-center justify-center border-4 border-background animate-bounce">
           <div className="w-2 h-2 bg-white rounded-full"></div>
         </div>
       </div>
 
-      <h1 className="text-3xl font-bold font-heading text-center mb-2">Auditoria em andamento</h1>
+      <h1 className="text-3xl font-bold font-heading text-center mb-2">
+        Auditoria em andamento
+      </h1>
+
       <p className="text-muted-foreground text-center mb-8 h-6 transition-all duration-300">
         {STEPS[stepIdx]}
       </p>
@@ -133,10 +140,13 @@ export default function AuditProcessing() {
           {STEPS.map((step, idx) => {
             const isCompleted = idx < stepIdx
             const isCurrent = idx === stepIdx
+
             return (
               <div
                 key={idx}
-                className={`flex items-center gap-3 transition-opacity duration-300 ${isCompleted ? 'opacity-50' : isCurrent ? 'opacity-100' : 'opacity-30'}`}
+                className={`flex items-center gap-3 transition-opacity duration-300 ${
+                  isCompleted ? 'opacity-50' : isCurrent ? 'opacity-100' : 'opacity-30'
+                }`}
               >
                 {isCompleted ? (
                   <CheckCircle2 className="w-5 h-5 text-secondary" />
@@ -145,8 +155,11 @@ export default function AuditProcessing() {
                 ) : (
                   <Circle className="w-5 h-5 text-muted-foreground" />
                 )}
+
                 <span
-                  className={`text-sm ${isCurrent ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}
+                  className={`text-sm ${
+                    isCurrent ? 'font-semibold text-foreground' : 'text-muted-foreground'
+                  }`}
                 >
                   {step}
                 </span>
