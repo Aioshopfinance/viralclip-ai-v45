@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, TrendingUp, Sparkles, Youtube, Video } from 'lucide-react'
+import { Plus, TrendingUp, Sparkles, Video } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,6 +8,27 @@ import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { ChannelCard, type ChannelWithAudits } from '@/components/dashboard/ChannelCard'
 import { normalizeUrl } from '@/lib/utils'
+import { triggerAuditProcessing } from '@/lib/audit-service'
+
+type SupportedPlatform = 'youtube' | 'tiktok' | 'instagram'
+
+function detectPlatform(url: string): SupportedPlatform | null {
+  const lower = url.toLowerCase()
+
+  if (lower.includes('youtube.com') || lower.includes('youtu.be')) {
+    return 'youtube'
+  }
+
+  if (lower.includes('tiktok.com')) {
+    return 'tiktok'
+  }
+
+  if (lower.includes('instagram.com')) {
+    return 'instagram'
+  }
+
+  return null
+}
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -27,7 +48,10 @@ export default function Dashboard() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      if (data) setChannels(data as ChannelWithAudits[])
+
+      if (data) {
+        setChannels(data as ChannelWithAudits[])
+      }
     } catch (error: any) {
       console.error('Error fetching channels:', error)
       toast({
@@ -46,24 +70,36 @@ export default function Dashboard() {
       const {
         data: { user },
       } = await supabase.auth.getUser()
+
       if (!user) {
         setIsLoading(false)
         return
       }
+
       userId = user.id
       await fetchChannels(userId)
       setIsLoading(false)
 
       subscription = supabase
-        .channel('dashboard-updates')
+        .channel(`dashboard-updates-${userId}`)
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'audits', filter: `user_id=eq.${userId}` },
+          {
+            event: '*',
+            schema: 'public',
+            table: 'audits',
+            filter: `user_id=eq.${userId}`,
+          },
           () => fetchChannels(userId),
         )
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'channels', filter: `user_id=eq.${userId}` },
+          {
+            event: '*',
+            schema: 'public',
+            table: 'channels',
+            filter: `user_id=eq.${userId}`,
+          },
           () => fetchChannels(userId),
         )
         .subscribe()
@@ -71,78 +107,83 @@ export default function Dashboard() {
 
     initDashboard()
 
-    // Reduced polling frequency since Realtime handles most updates
-    const timeoutInterval = setInterval(() => {
-      setChannels((prev) => {
-        prev.forEach((ch) => {
-          const latest = [...(ch.audits || [])].sort(
-            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-          )[0]
+    const timeoutInterval = setInterval(async () => {
+      const pendingAudits = channels.flatMap((channel) =>
+        (channel.audits || []).filter(
+          (audit) => audit.status === 'pending' || audit.status === 'processing',
+        ),
+      )
 
-          if (latest?.status === 'pending' || latest?.status === 'processing') {
-            const age = Date.now() - new Date(latest.created_at).getTime()
-            if (age > 45000) {
-              supabase
-                .from('audits')
-                .update({
-                  status: 'failed',
-                  error_message: 'Tempo limite excedido na análise da IA.',
-                })
-                .eq('id', latest.id)
-                .then()
-            }
-          }
-        })
-        return prev
-      })
+      for (const audit of pendingAudits) {
+        const age = Date.now() - new Date(audit.created_at).getTime()
+
+        if (age > 45000) {
+          await supabase
+            .from('audits')
+            .update({
+              status: 'failed',
+              error_message: 'Tempo limite excedido na análise da IA.',
+            })
+            .eq('id', audit.id)
+        }
+      }
     }, 15000)
 
     return () => {
-      if (subscription) supabase.removeChannel(subscription)
+      if (subscription) {
+        supabase.removeChannel(subscription)
+      }
       clearInterval(timeoutInterval)
     }
-  }, [toast])
+  }, [toast, channels])
 
   const handleCreateAudit = async () => {
-    if (!auditUrl) {
+    const trimmedUrl = auditUrl.trim()
+
+    if (!trimmedUrl) {
       toast({
         title: 'Aviso',
-        description: 'Insira a URL do canal do YouTube ou TikTok.',
+        description: 'Insira a URL do canal/perfil para auditoria.',
       })
       return
     }
 
-    const isTikTok = auditUrl.toLowerCase().includes('tiktok.com')
-    const isYoutube =
-      auditUrl.toLowerCase().includes('youtube.com') || auditUrl.toLowerCase().includes('youtu.be')
+    const platform = detectPlatform(trimmedUrl)
 
-    if (!isTikTok && !isYoutube) {
+    if (!platform) {
       toast({
-        title: 'Plataforma em Construção',
-        description:
-          'No momento, suportamos apenas YouTube e TikTok. Instagram e Twitch chegarão em breve!',
+        title: 'URL inválida',
+        description: 'No momento, suportamos URLs de YouTube, TikTok e Instagram.',
         variant: 'destructive',
       })
       return
     }
 
     setIsCreating(true)
+
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      if (!user) throw new Error('Autenticação necessária')
 
-      const platform = isTikTok ? 'tiktok' : 'youtube'
-      const normalizedLink = normalizeUrl(auditUrl)
+      if (!user) {
+        throw new Error('Autenticação necessária')
+      }
+
+      const normalizedLink = normalizeUrl(trimmedUrl)
 
       let channelId = ''
-      const { data: existingChannel } = await supabase
+
+      const { data: existingChannel, error: existingChannelError } = await supabase
         .from('channels')
         .select('*')
         .eq('user_id', user.id)
         .eq('normalized_link', normalizedLink)
         .maybeSingle()
+
+      if (existingChannelError) {
+        throw existingChannelError
+      }
 
       if (existingChannel) {
         channelId = existingChannel.id
@@ -151,30 +192,51 @@ export default function Dashboard() {
           .from('channels')
           .insert({
             user_id: user.id,
-            channel_link: auditUrl,
+            channel_link: trimmedUrl,
             normalized_link: normalizedLink,
             platform,
             channel_name: 'Novo Canal Detectado',
           } as any)
           .select()
           .single()
+
         if (chErr) throw chErr
         channelId = newChannel.id
       }
 
-      const { error: auditErr } = await supabase
+      const { data: insertedAudit, error: auditErr } = await supabase
         .from('audits')
-        .insert({ user_id: user.id, channel_id: channelId, status: 'pending', type: 'free_audit' })
+        .insert({
+          user_id: user.id,
+          channel_id: channelId,
+          status: 'pending',
+          type: 'free_audit',
+        })
+        .select()
+        .single()
 
       if (auditErr) throw auditErr
+      if (!insertedAudit?.id) {
+        throw new Error('Não foi possível obter o ID da auditoria criada.')
+      }
+
+      await triggerAuditProcessing(insertedAudit.id)
 
       setAuditUrl('')
+
       toast({
-        title: 'Auditoria Iniciada',
+        title: 'Auditoria iniciada',
         description: 'Nossa IA está analisando seu perfil em tempo real.',
       })
+
+      navigate(`/audit/processing/${insertedAudit.id}`)
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+      console.error('Error creating audit:', err)
+      toast({
+        title: 'Erro',
+        description: err?.message || 'Falha ao iniciar a auditoria.',
+        variant: 'destructive',
+      })
     } finally {
       setIsCreating(false)
     }
@@ -182,15 +244,30 @@ export default function Dashboard() {
 
   const handleRetryAudit = async (auditId: string) => {
     try {
-      toast({ title: 'Retentando auditoria...', description: 'Aguarde o processamento.' })
+      toast({
+        title: 'Retentando auditoria...',
+        description: 'Aguarde o processamento.',
+      })
+
       const { error } = await supabase
         .from('audits')
-        .update({ status: 'pending', error_message: null })
+        .update({
+          status: 'pending',
+          error_message: null,
+        })
         .eq('id', auditId)
 
       if (error) throw error
+
+      await triggerAuditProcessing(auditId)
+      navigate(`/audit/processing/${auditId}`)
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+      console.error('Error retrying audit:', err)
+      toast({
+        title: 'Erro',
+        description: err?.message || 'Falha ao reprocessar a auditoria.',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -207,21 +284,24 @@ export default function Dashboard() {
         <Card className="col-span-1 md:col-span-3 border-secondary/30 bg-secondary/5 relative overflow-hidden">
           <CardHeader className="pb-2">
             <CardTitle className="text-xl flex items-center gap-2">
-              <Video className="h-6 w-6 text-secondary" /> Nova Auditoria IA
+              <Video className="h-6 w-6 text-secondary" />
+              Nova Auditoria IA
             </CardTitle>
             <CardDescription>
-              Cole a URL do seu YouTube ou TikTok para analisar as métricas e descobrir
-              oportunidades virais.
+              Cole a URL do seu YouTube, TikTok ou Instagram para analisar métricas e descobrir
+              oportunidades de crescimento.
             </CardDescription>
           </CardHeader>
+
           <CardContent className="flex flex-col sm:flex-row gap-3 pt-4">
             <Input
-              placeholder="Ex: https://tiktok.com/@meuperfil ou youtube.com/@canal"
+              placeholder="Ex: https://youtube.com/@canal, https://tiktok.com/@perfil ou instagram.com/..."
               value={auditUrl}
               onChange={(e) => setAuditUrl(e.target.value)}
               className="bg-background max-w-xl"
               onKeyDown={(e) => e.key === 'Enter' && handleCreateAudit()}
             />
+
             <Button
               size="lg"
               onClick={handleCreateAudit}
@@ -241,9 +321,11 @@ export default function Dashboard() {
         <Card className="bg-gradient-to-br from-primary to-primary/90 text-primary-foreground border-none">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-accent" /> Canais Monitorados
+              <TrendingUp className="h-5 w-5 text-accent" />
+              Canais Monitorados
             </CardTitle>
           </CardHeader>
+
           <CardContent>
             <div className="text-4xl font-bold font-heading">{channels.length}</div>
             <p className="text-primary-foreground/70 text-sm mt-1">Unidades exclusivas</p>
