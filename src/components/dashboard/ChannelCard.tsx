@@ -18,6 +18,7 @@ import type { Database } from '@/lib/supabase/types'
 
 type BaseChannel = Database['public']['Tables']['channels']['Row']
 type BaseAudit = Database['public']['Tables']['audits']['Row']
+
 export type ChannelWithAudits = BaseChannel & { audits: BaseAudit[] }
 
 interface ChannelCardProps {
@@ -34,7 +35,6 @@ const loadingMsgs = [
 export function ChannelCard({ channel, onRetry }: ChannelCardProps) {
   const [loadingMsgIdx, setLoadingMsgIdx] = useState(0)
 
-  // Sort audits to get the most recent one reliably
   const latestAudit = [...(channel.audits || [])].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   )[0]
@@ -45,16 +45,17 @@ export function ChannelCard({ channel, onRetry }: ChannelCardProps) {
   const analysisData = latestAudit?.analysis_data as any
   const integrationStatus = analysisData?.integrationStatus || 'real'
   const isPendingIntegration = integrationStatus === 'pending'
-
   const score = isPendingIntegration ? 0 : latestAudit?.growth_score || 0
 
   useEffect(() => {
     let interval: NodeJS.Timeout
+
     if (status === 'pending' || status === 'processing') {
       interval = setInterval(() => {
         setLoadingMsgIdx((prev) => (prev + 1) % loadingMsgs.length)
       }, 4000)
     }
+
     return () => clearInterval(interval)
   }, [status])
 
@@ -73,14 +74,17 @@ export function ChannelCard({ channel, onRetry }: ChannelCardProps) {
             <div className="h-16 w-16 rounded-full border-2 border-muted bg-secondary/10 flex items-center justify-center shrink-0">
               <PlatformIcon className="h-8 w-8 text-secondary" />
             </div>
+
             <div>
               <h3 className="font-bold text-lg line-clamp-1">
                 {channel.channel_name || 'Novo Canal'}
               </h3>
+
               <div className="flex items-center gap-2 text-sm mt-1">
                 <Badge variant="outline" className="capitalize">
                   {channel.platform}
                 </Badge>
+
                 <Badge
                   variant={
                     status === 'pending' || status === 'processing'
@@ -104,12 +108,14 @@ export function ChannelCard({ channel, onRetry }: ChannelCardProps) {
               </div>
             </div>
           </div>
+
           {status === 'failed' && (
             <div className="text-xs text-destructive flex items-start gap-1 mt-4 bg-destructive/10 p-2 rounded-md">
               <AlertCircle className="h-4 w-4 shrink-0" />
               <span>{analysisData?.message || 'Falha ao recuperar dados da API real.'}</span>
             </div>
           )}
+
           {isPendingIntegration && status === 'completed' && (
             <div className="text-xs text-muted-foreground flex items-start gap-1 mt-4 bg-muted/50 p-2 rounded-md border border-muted">
               <Clock className="h-4 w-4 shrink-0" />
@@ -117,12 +123,16 @@ export function ChannelCard({ channel, onRetry }: ChannelCardProps) {
             </div>
           )}
         </div>
+
         <div
-          className={`w-24 shrink-0 ${isPendingIntegration || status !== 'completed' ? 'opacity-20 filter grayscale' : ''}`}
+          className={`w-24 shrink-0 ${
+            isPendingIntegration || status !== 'completed' ? 'opacity-20 filter grayscale' : ''
+          }`}
         >
           <ScoreGauge score={score} />
         </div>
       </CardContent>
+
       <CardFooter className="bg-muted/30 border-t p-4 flex justify-between items-center">
         <span className="text-xs text-muted-foreground flex items-center gap-1">
           {status === 'failed' ? (
@@ -140,7 +150,7 @@ export function ChannelCard({ channel, onRetry }: ChannelCardProps) {
           </Button>
         ) : (
           <Button size="sm" asChild disabled={status === 'pending' || status === 'processing'}>
-            <Link to={status === 'completed' ? `/audits/${latestAudit?.id}` : '#'}>
+            <Link to={status === 'completed' ? `/audit/result/${latestAudit?.id}` : '#'}>
               {status === 'pending' || status === 'processing' ? 'Aguarde...' : 'Ver Relatório'}
             </Link>
           </Button>
