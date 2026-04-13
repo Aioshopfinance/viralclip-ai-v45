@@ -165,13 +165,11 @@ export default function AuditResult() {
 
   const channel = audit.channel || {}
   const analysis = audit.analysis_data || {}
-
-  // Compatibilidade com estrutura nova (analysis.data.*) e antiga (analysis.*)
-  const analysisPayload = analysis.data || analysis
-  const metrics = analysisPayload?.metrics || null
-  const breakdown = analysisPayload?.score_breakdown || null
-  const suggestions = analysisPayload?.content_suggestions || []
-
+  const analysisPayload = analysis.data || {}
+  const metrics = analysisPayload.metrics || null
+  const breakdown = analysisPayload.score_breakdown || null
+  const suggestions = analysisPayload.content_suggestions || []
+  const meta = analysis.meta || {}
   const score = breakdown?.total || audit.growth_score || 0
 
   const isPendingIntegration =
@@ -194,17 +192,17 @@ export default function AuditResult() {
           <img src={avatarUrl} alt="Platform" className="w-16 h-16 rounded-full bg-secondary/10" />
           <div>
             <h1 className="text-3xl font-heading font-bold">
-              {channel.channel_name || 'Canal Analisado'}
+              {channel.channel_name || meta.channelName || 'Canal Analisado'}
             </h1>
 
             <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
               <span className="capitalize">{channel.platform}</span>
 
-              {analysis?.meta?.canonicalChannelId && (
+              {meta?.canonicalChannelId && (
                 <>
                   <span>•</span>
                   <span className="flex items-center gap-1 font-mono text-xs bg-muted px-2 py-0.5 rounded">
-                    <Hash className="h-3 w-3" /> {analysis.meta.canonicalChannelId}
+                    <Hash className="h-3 w-3" /> {meta.canonicalChannelId}
                   </span>
                 </>
               )}
@@ -223,7 +221,6 @@ export default function AuditResult() {
             <Construction className="h-12 w-12 mx-auto text-yellow-500 mb-4" />
             <h2 className="text-2xl font-heading font-bold mb-2">Integração em Desenvolvimento</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">{pendingMessage}</p>
-
             <div className="mt-6">
               <Button onClick={() => navigate('/dashboard')}>Voltar ao Dashboard</Button>
             </div>
@@ -245,13 +242,16 @@ export default function AuditResult() {
 
             <div className="lg:col-span-2">
               {metrics && (
-                <AuditMetrics metrics={metrics} breakdown={breakdown} platform={channel.platform} />
+                <AuditMetrics
+                  metrics={metrics}
+                  breakdown={breakdown}
+                  platform={channel.platform}
+                />
               )}
 
               {suggestions.length > 0 && (
                 <div className="mt-6 space-y-4">
                   <h3 className="text-lg font-heading font-semibold">Oportunidades</h3>
-
                   {suggestions.map((s: string, idx: number) => (
                     <Card key={idx} className="border-l-4 border-l-accent bg-card/50">
                       <CardContent className="p-4 text-sm">{s}</CardContent>

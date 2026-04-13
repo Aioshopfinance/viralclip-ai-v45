@@ -5,11 +5,8 @@ export async function runTikTokAudit(url: string) {
     provider: 'tiktok',
     message:
       'A integração com a API oficial do TikTok está em desenvolvimento. Em breve você terá dados reais.',
-
     data: null,
-
     error: null,
-
     meta: {
       channelName: url,
     },

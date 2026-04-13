@@ -30,37 +30,35 @@ export default function ChannelNew() {
   const [customNiche, setCustomNiche] = useState('')
   const [step, setStep] = useState(1)
   const [isProcessing, setIsProcessing] = useState(false)
+
   const navigate = useNavigate()
   const { toast } = useToast()
 
   const detectPlatform = (inputUrl: string) => {
     const lowerUrl = inputUrl.toLowerCase()
+
     if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) return 'youtube'
     if (lowerUrl.includes('instagram.com')) return 'instagram'
     if (lowerUrl.includes('tiktok.com')) return 'tiktok'
-    if (
-      lowerUrl.includes('facebook.com') ||
-      lowerUrl.includes('fb.watch') ||
-      lowerUrl.includes('fb.com')
-    )
-      return 'facebook'
+    if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.watch') || lowerUrl.includes('fb.com')) return 'facebook'
     if (lowerUrl.includes('kwai.com') || lowerUrl.includes('kw.ai')) return 'kwai'
     if (lowerUrl.includes('linkedin.com')) return 'linkedin'
     if (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com')) return 'twitter'
     if (lowerUrl.includes('pinterest.com') || lowerUrl.includes('pin.it')) return 'pinterest'
     if (lowerUrl.includes('twitch.tv')) return 'twitch'
     if (lowerUrl.includes('spotify.com')) return 'spotify'
-    if (lowerUrl.includes('apple.com/podcast') || lowerUrl.includes('podcasts.apple.com'))
-      return 'apple_podcasts'
+    if (lowerUrl.includes('apple.com/podcast') || lowerUrl.includes('podcasts.apple.com')) return 'apple_podcasts'
     if (lowerUrl.includes('t.me') || lowerUrl.includes('telegram.me')) return 'telegram'
     if (lowerUrl.includes('whatsapp.com') || lowerUrl.includes('wa.me')) return 'whatsapp'
     if (lowerUrl.includes('discord.com') || lowerUrl.includes('discord.gg')) return 'discord'
+
     return null
   }
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newUrl = e.target.value
     setUrl(newUrl)
+
     const detected = detectPlatform(newUrl)
     if (detected) {
       setPlatform(detected)
@@ -86,6 +84,7 @@ export default function ChannelNew() {
           variant: 'destructive',
         })
       }
+
       if (platform === 'outros' && !customPlatform.trim()) {
         return toast({
           title: 'Atenção',
@@ -93,17 +92,20 @@ export default function ChannelNew() {
           variant: 'destructive',
         })
       }
+
       setStep(step + 1)
-    } else {
-      if (niche === 'outros' && !customNiche.trim()) {
-        return toast({
-          title: 'Atenção',
-          description: 'Por favor, descreva seu nicho.',
-          variant: 'destructive',
-        })
-      }
-      handleSubmit()
+      return
     }
+
+    if (niche === 'outros' && !customNiche.trim()) {
+      return toast({
+        title: 'Atenção',
+        description: 'Por favor, descreva seu nicho.',
+        variant: 'destructive',
+      })
+    }
+
+    handleSubmit()
   }
 
   const handleSubmit = async () => {
@@ -111,12 +113,12 @@ export default function ChannelNew() {
 
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+
       if (sessionError || !sessionData?.session?.user) {
         setIsProcessing(false)
         return toast({
           title: 'Sessão expirada',
-          description:
-            'Você precisa estar autenticado para registrar um canal. Por favor, faça login novamente.',
+          description: 'Você precisa estar autenticado para registrar um canal. Por favor, faça login novamente.',
         })
       }
 
@@ -172,14 +174,15 @@ export default function ChannelNew() {
 
       if (aErr) throw aErr
 
-      console.log(`[Frontend] audit created:`, insertedAudit.id)
+      console.log('[Frontend] audit created:', insertedAudit.id)
 
-      triggerAuditProcessing(insertedAudit.id)
+      await triggerAuditProcessing(insertedAudit.id)
       navigate(`/audit/processing/${insertedAudit.id}`)
     } catch (error: any) {
       setIsProcessing(false)
 
       let description = error.message || 'Ocorreu um erro desconhecido.'
+
       if (error.code === '42501') {
         description =
           'Acesso negado: Você não tem permissão para inserir este canal (Violação de RLS).'
@@ -196,7 +199,7 @@ export default function ChannelNew() {
     }
   }
 
-  if (isProcessing)
+  if (isProcessing) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center space-y-6">
         <Bot className="h-12 w-12 text-secondary animate-pulse" />
@@ -207,6 +210,7 @@ export default function ChannelNew() {
         </p>
       </div>
     )
+  }
 
   return (
     <div className="max-w-xl mx-auto mt-10">
@@ -226,6 +230,7 @@ export default function ChannelNew() {
               : 'Isso ajuda a IA a calibrar a estratégia.'}
           </CardDescription>
         </CardHeader>
+
         <CardContent className="space-y-6">
           {step === 1 ? (
             <div className="space-y-4">
@@ -237,6 +242,7 @@ export default function ChannelNew() {
                   onChange={handleUrlChange}
                 />
               </div>
+
               <div className="space-y-2">
                 <Label>Nome do Canal</Label>
                 <Input
@@ -245,6 +251,7 @@ export default function ChannelNew() {
                   onChange={(e) => setName(e.target.value)}
                 />
               </div>
+
               <div className="space-y-2">
                 <Label>Plataforma</Label>
                 <Select
@@ -257,6 +264,7 @@ export default function ChannelNew() {
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
+
                   <SelectContent className="max-h-60">
                     <SelectItem value="youtube">YouTube</SelectItem>
                     <SelectItem value="instagram">Instagram</SelectItem>
@@ -277,6 +285,7 @@ export default function ChannelNew() {
                   </SelectContent>
                 </Select>
               </div>
+
               {platform === 'outros' && (
                 <div className="space-y-2 animate-fade-in-up">
                   <Label>Descreva a plataforma</Label>
@@ -302,6 +311,7 @@ export default function ChannelNew() {
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
+
                   <SelectContent>
                     <SelectItem value="devocional">Devocional Diário</SelectItem>
                     <SelectItem value="pregacao">Pregações / Sermões</SelectItem>
@@ -324,13 +334,17 @@ export default function ChannelNew() {
               )}
             </div>
           )}
+
           <div className="flex justify-end gap-3 pt-4 border-t">
             {step > 1 && (
               <Button variant="ghost" onClick={() => setStep(step - 1)}>
                 Voltar
               </Button>
             )}
-            <Button onClick={handleNext}>{step === 1 ? 'Avançar' : 'Iniciar Auditoria'}</Button>
+
+            <Button onClick={handleNext}>
+              {step === 1 ? 'Avançar' : 'Iniciar Auditoria'}
+            </Button>
           </div>
         </CardContent>
       </Card>
