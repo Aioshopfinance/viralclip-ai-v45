@@ -11,6 +11,10 @@ import { supabase } from '@/lib/supabase/client'
 import { AuditMetrics } from '@/components/audit/AuditMetrics'
 import { LockedReport } from '@/components/audit/LockedReport'
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+}
+
 function AuditStatusBadge({ status }: { status: string }) {
   if (status === 'pending' || status === 'processing')
     return (
@@ -18,18 +22,21 @@ function AuditStatusBadge({ status }: { status: string }) {
         <Loader2 className="h-3 w-3 mr-1 animate-spin" /> Analisando
       </Badge>
     )
+
   if (status === 'completed')
     return (
       <Badge className="bg-emerald-500 hover:bg-emerald-600">
         <CheckCircle2 className="h-3 w-3 mr-1" /> Concluído
       </Badge>
     )
+
   if (status === 'error' || status === 'failed')
     return (
       <Badge variant="destructive">
         <AlertCircle className="h-3 w-3 mr-1" /> Falha
       </Badge>
     )
+
   return <Badge variant="outline">{status}</Badge>
 }
 
@@ -49,7 +56,20 @@ export default function AuditDetail() {
   const showPreviewOnly = isAnonymous && !isUnlocked && audit?.status === 'completed'
 
   useEffect(() => {
-    if (!id || !user) return
+    if (!id) {
+      setError('ID de auditoria ausente.')
+      setLoading(false)
+      return
+    }
+
+    if (!isUuid(id)) {
+      setError('ID de auditoria inválido.')
+      setLoading(false)
+      return
+    }
+
+    if (!user) return
+
     const fetchAudit = async () => {
       try {
         const { data, error: fetchErr } = await supabase
@@ -58,8 +78,10 @@ export default function AuditDetail() {
           .eq('id', id)
           .eq('user_id', user.id)
           .single()
+
         if (fetchErr) throw fetchErr
         if (!data) throw new Error('Auditoria não encontrada.')
+
         setAudit({
           ...data,
           channel: Array.isArray(data.channels) ? data.channels[0] : data.channels,
@@ -70,6 +92,7 @@ export default function AuditDetail() {
         setLoading(false)
       }
     }
+
     fetchAudit()
 
     const sub = supabase
@@ -80,6 +103,7 @@ export default function AuditDetail() {
         (payload) => setAudit((prev: any) => ({ ...prev, ...payload.new })),
       )
       .subscribe()
+
     return () => {
       supabase.removeChannel(sub)
     }
@@ -94,13 +118,11 @@ export default function AuditDetail() {
         console.log(
           `channelId resolved: ${ad.youtube_channel_id} (Format: ${ad.resolved_url_type})`,
         )
-
         const stats = ad.raw_data?.channel?.items?.[0]?.statistics
         if (stats) {
           console.log(`subscriberCount: ${stats.subscriberCount}`)
           console.log(`videoCount: ${stats.videoCount}`)
         }
-
         console.log(
           `Recent Videos:`,
           ad.raw_data?.videos?.items?.map((v: any) => ({
@@ -110,7 +132,6 @@ export default function AuditDetail() {
             publishedAt: v.snippet?.publishedAt,
           })),
         )
-
         console.log(`Metrics Used:`, ad.metrics)
         console.log(`Score Breakdown:`, ad.score_breakdown)
         console.groupEnd()
@@ -118,15 +139,28 @@ export default function AuditDetail() {
     }
   }, [audit?.status])
 
-  const handleUnlock = async (e: React.FormEvent, email: string, pass: string, name: string) => {
+  const handleUnlock = async (
+    e: React.FormEvent,
+    email: string,
+    pass: string,
+    name: string,
+  ) => {
     e.preventDefault()
     setFormLoading(true)
     const { error: convErr } = await convertAnonymousUser(email, pass, name)
     setFormLoading(false)
-    if (convErr)
-      toast({ title: 'Erro ao desbloquear', description: convErr.message, variant: 'destructive' })
-    else {
-      toast({ title: 'Sucesso!', description: 'Conta criada e relatório desbloqueado.' })
+
+    if (convErr) {
+      toast({
+        title: 'Erro ao desbloquear',
+        description: convErr.message,
+        variant: 'destructive',
+      })
+    } else {
+      toast({
+        title: 'Sucesso!',
+        description: 'Conta criada e relatório desbloqueado.',
+      })
       setIsUnlocked(true)
     }
   }
@@ -137,6 +171,7 @@ export default function AuditDetail() {
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     )
+
   if (error || !audit)
     return (
       <div className="text-center py-20">
@@ -170,6 +205,7 @@ export default function AuditDetail() {
         <div className="h-16 w-16 bg-secondary/10 rounded-full flex items-center justify-center text-secondary border border-secondary/20">
           <Video className="h-8 w-8" />
         </div>
+
         <div>
           <h1 className="text-3xl font-heading font-bold line-clamp-1">{channelName}</h1>
           <div className="text-muted-foreground text-sm flex items-center gap-3 mt-1">
@@ -223,6 +259,7 @@ export default function AuditDetail() {
                 <h3 className="text-xl font-semibold flex items-center gap-2 border-b pb-2">
                   <Sparkles className="text-secondary h-5 w-5" /> Recomendações Otimizadas
                 </h3>
+
                 {analysis.content_suggestions?.map((s: string, idx: number) => (
                   <Card key={idx} className="bg-secondary/5">
                     <CardContent className="p-4 flex gap-4">
